@@ -12,6 +12,8 @@ from src.models.short_rate.fra import simulate_fra_distribution
 from src.explainers.short_rate import ShortRateExplainer, summarize_convexity_table
 from src.explainers.simulation_narrative import FRASimContext, SimulationNarrativeGenerator
 
+from app.calculation_windows import render_equation_window
+
 
 def _is_learning(controls: Any) -> bool:
     mode = getattr(controls, "explanation_mode", None) or controls.get("explanation_mode", "basic")
@@ -77,10 +79,23 @@ def render(controls: dict[str, float | str | bool]) -> None:
         )
 
     st.dataframe(summary, use_container_width=True)
-
-    # --- FRA simulation with auto-generated explanation ---
     t1 = max(0.25, tenor / 2.0)
     t2 = max(0.5, tenor)
+    convexity_bp = float(summary["convexity_adjustment"].iloc[0] * 1e4)
+    render_equation_window(
+        title="How convexity adjustment is calculated",
+        equations=[
+            r"\mathrm{Convexity\ Adjustment} = \mathbb{E}[R_{\mathrm{futures}}] - \mathbb{E}[R_{\mathrm{FRA}}]",
+            r"\mathrm{Convexity\ Adjustment}_{bp} = 10{,}000 \times \left(\mathbb{E}[R_{\mathrm{futures}}] - \mathbb{E}[R_{\mathrm{FRA}}]\right)",
+        ],
+        notes=[
+            f"Window = {t1:.4f}y to {t2:.4f}y; paths = 1500; sigma regimes = 0.5%, 1.0%, 2.0%",
+            f"Base displayed adjustment = {convexity_bp:.4f} bp",
+            "Values come from Monte Carlo FRA vs futures rates using Ho-Lee dynamics.",
+        ],
+    )
+
+    # --- FRA simulation with auto-generated explanation ---
     sim_model = HoLeeModel(sigma=0.01)
     fra_result = simulate_fra_distribution(
         sim_model, curve, start=t1, end=t2, n_paths=1_500, seed=42,

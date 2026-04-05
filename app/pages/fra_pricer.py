@@ -6,6 +6,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
+from app.calculation_windows import render_equation_window
 from src.models.short_rate.calibration import calibrate_with_multistart
 from src.models.short_rate.fra import simulate_fra_distribution
 from src.models.short_rate.ho_lee import HoLeeModel
@@ -243,6 +244,20 @@ def _render_streamlit() -> None:
         p2.metric("Roll-down (1M)", f"{results['roll_down']:,.0f}")
         p3.metric("DV01", f"{results['dv01']:,.2f}")
         p4.metric("Gamma (1bp)", f"{results['gamma_1bp']:,.2f}")
+        render_equation_window(
+            title="How FRA pricing and risk metrics are calculated",
+            equations=[
+                r"F(t_1,t_2)=\frac{P(0,t_1)/P(0,t_2)-1}{\tau}",
+                r"PV = s \times N \times \tau \times (F-K)\times P(0,t_2)",
+                r"DV01 \approx \frac{PV(r-1bp)-PV(r+1bp)}{2}",
+                r"\Gamma_{1bp}=PV(r+1bp)-2PV(r)+PV(r-1bp)",
+            ],
+            notes=[
+                f"s (direction sign) = {fra.sign:.1f}, N = {fra.notional:,.0f}, τ = {fra.tau:.6f}",
+                f"Model-implied forward = {results['model_forward']:.6%}, contract rate K = {results['contract_rate']:.6%}",
+                f"PV = {results['pv']:,.2f}, DV01 = {results['dv01']:,.4f}, Gamma(1bp) = {results['gamma_1bp']:,.4f}",
+            ],
+        )
 
         calib_cols = ["sigma", "a", "calib_objective"]
         calib_display = {k: v for k, v in results.items() if k in calib_cols}

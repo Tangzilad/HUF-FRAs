@@ -12,6 +12,7 @@ import streamlit as st
 from src.risk.portfolio_shocks import Trade, decompose_pnl, propagate_scenario
 from src.risk.scenarios.em_scenarios import EMScenario, em_scenario_library
 from src.explainers.simulation_narrative import ScenarioContext, SimulationNarrativeGenerator
+from app.calculation_windows import render_equation_window
 
 
 REQUIRED_PORTFOLIO_COLUMNS = [
@@ -326,6 +327,21 @@ def main() -> None:
                 "basis shifts, and carry. This tells you *why* the portfolio lost money, not just *how much*."
             )
         st.dataframe(pnl_decomposition, use_container_width=True)
+        if not pnl_decomposition.empty:
+            total_pnl = float(pnl_decomposition.get("pnl_total", pd.Series(dtype=float)).sum())
+            render_equation_window(
+                title="How scenario P&L decomposition is calculated",
+                equations=[
+                    r"PnL_{\mathrm{trade}} = DV01 \cdot \Delta r + FX\Delta \cdot \Delta FX + Basis01 \cdot \Delta b + Carry",
+                    r"PnL_{\mathrm{bucket}} = \sum_{i \in bucket} PnL_{\mathrm{trade},i}",
+                    r"PnL_{\mathrm{portfolio}} = \sum_{\mathrm{buckets}} PnL_{\mathrm{bucket}}",
+                ],
+                notes=[
+                    f"Scenario = {scenario_name}; include hedge overlays = {include_overlay}",
+                    f"Aggregated P&L from displayed table = {total_pnl:,.2f}",
+                    "Each term is computed from the portfolio sensitivities and selected scenario shocks.",
+                ],
+            )
         _render_downloads(pnl_decomposition, "P&L Decomposition", "pnl_decomposition")
 
     with tab_scenario:
