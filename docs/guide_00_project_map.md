@@ -90,7 +90,9 @@ Cross-links from routed app pages to underlying modules:
 - [`src/risk/backtesting.py`](../src/risk/backtesting.py)
 - [`src/risk/factor_models.py`](../src/risk/factor_models.py)
 - [`src/risk/hedging_optimizer.py`](../src/risk/hedging_optimizer.py)
+- [`src/risk/pnl_decomposition.py`](../src/risk/pnl_decomposition.py) — level/slope/curvature decomposition
 - [`src/risk/portfolio_shocks.py`](../src/risk/portfolio_shocks.py)
+- [`src/risk/strategies.py`](../src/risk/strategies.py) — yield-curve strategy position generator
 - [`src/risk/tail_risk.py`](../src/risk/tail_risk.py)
 - [`src/risk/scenarios/em_scenarios.py`](../src/risk/scenarios/em_scenarios.py)
 
