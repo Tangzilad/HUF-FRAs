@@ -142,8 +142,7 @@ def _compute_hedge_effectiveness(exposure_vector: np.ndarray, hedge_solution: np
 def render() -> None:
     import streamlit as st
 
-    st.set_page_config(page_title="Stress Lab", layout="wide")
-    st.title("Stress Lab")
+    st.subheader("Stress Lab")
     st.caption("Scenario stress + custom shocks + hedge what-if optimization")
 
     scenarios = _merge_scenarios()
