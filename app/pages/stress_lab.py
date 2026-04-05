@@ -47,6 +47,13 @@ INSTRUMENTS = [
 TENOR_BUCKETS = ["front", "belly", "back", "front", "belly", "back"]
 
 
+def _is_learning_session() -> bool:
+    import streamlit as st
+
+    mode = st.session_state.get("explanation_mode", "basic")
+    return str(mode).lower() == "learning"
+
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
