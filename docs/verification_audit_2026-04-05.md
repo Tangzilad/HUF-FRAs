@@ -2,29 +2,31 @@
 
 Scope: Validate the requested product-level checks against the current repository state.
 
+> **Update note (same date):** The repository now includes a routed Streamlit shell under `app/` with active pages `Start here`, `CIP basis`, `Cross-currency`, and `Short-rate FRA`. Statements below that claim no app shell is present are superseded.
+
 ## 1) Sidebar controls trigger full recomputation chain
 
 **Status:** Gap identified.
 
-There is no `app/` tree and no web UI framework wiring (for example Streamlit/Dash sidebar controls) in this repository snapshot. The runnable interfaces are CLI (`fra_simulation.py`, `scripts/explain.py`) plus notebooks.
+This section is superseded by the current `app/` implementation (`app/app.py`, `app/widgets.py`), which includes Streamlit sidebar controls and routed pages.
 
 ## 2) Required pages reachable from one unified app shell
 
 **Status:** Gap identified.
 
-No unified app shell exists in the current codebase. Documentation and workflows are organized through Markdown guides and notebooks, not routed app pages.
+This section is superseded. A unified app shell exists in `app/app.py` with routed live pages (`Start here`, `CIP basis`, `Cross-currency`, `Short-rate FRA`).
 
 ## 3) Reuse of existing analytics in `src/` vs reimplementation in `app/`
 
 **Status:** Confirmed for current architecture.
 
-There is no `app/` implementation that duplicates analytics. Execution entrypoints import and call packaged logic from `src/` (for example explainers and risk/curve/model analytics), which indicates reuse of canonical module code rather than shadow implementations.
+Routed pages in `app/pages/` call analytics modules from `src/` (for example CIP, cross-currency, and short-rate workflows), maintaining reuse of canonical package logic.
 
 ## 4) Learning mode coverage across core charts/tables
 
 **Status:** Partially covered (non-UI).
 
-Learning coverage exists through the explainer layer and CLI topics (`parametric`, `short-rate`, `cross-currency`, `cip`, `risk`, `all`). This covers core analytics domains in narrative form, but there is no app-level "learning mode" toggle over UI charts/tables because a chart/table app shell is not present.
+Learning coverage exists through page-level explainers and an app-level mode toggle (`Basic`/`Learning`) surfaced in sidebar controls.
 
 ## 5) Export validation for base and stressed outputs
 
@@ -36,7 +38,7 @@ A regression test now validates CSV exports for both a base dataset and a stress
 
 **Status:** Updated by this audit.
 
-This audit explicitly documents that the repository is currently package/CLI/notebook driven, not a unified page-based application shell.
+Documentation should treat `app/app.py` as the canonical UI entrypoint and describe only the currently routed pages unless additional pages are explicitly wired.
 
 ## 7) Known gaps/limitations and follow-up tasks
 

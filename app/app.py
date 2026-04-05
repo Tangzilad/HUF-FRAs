@@ -31,11 +31,12 @@ def main() -> None:
 
     import streamlit as st
 
-    from app.pages import render_cip_page, render_cross_currency_page, render_short_rate_page
+    from app.pages import render_cip_page, render_cross_currency_page, render_home_page, render_short_rate_page
     from app.state import initialize_state
     from app.widgets import render_sidebar_controls
 
     routes = {
+        "Start here": render_home_page,
         "CIP basis": render_cip_page,
         "Cross-currency": render_cross_currency_page,
         "Short-rate FRA": render_short_rate_page,
@@ -54,24 +55,9 @@ def main() -> None:
 
     is_learning = getattr(controls, "explanation_mode", "basic") == "learning"
 
-    if is_learning:
-        with st.expander("Welcome — What is this toolkit?", expanded=False):
-            st.markdown(
-                "This interactive workbench lets you explore **Hungarian forint (HUF) forward rate agreement** "
-                "analytics step by step. It covers three core areas:\n\n"
-                "| Page | What you'll learn |\n"
-                "|------|-------------------|\n"
-                "| **CIP basis** | How covered interest parity works and what basis deviations signal |\n"
-                "| **Cross-currency** | How domestic and foreign curves combine with FX to produce consistent pricing |\n"
-                "| **Short-rate FRA** | How stochastic models price FRAs and why convexity adjustments matter |\n\n"
-                "**Tip:** Use the sidebar controls on the left to change inputs. "
-                "Hover over any control's **?** icon for a quick explanation. "
-                "Switch to *Basic* mode in the sidebar to hide learning panels."
-            )
+    page = str(getattr(controls, "active_page", "Start here"))
 
-    page = str(getattr(controls, "active_page", "CIP basis"))
-
-    if is_learning:
+    if is_learning and page in PAGE_DESCRIPTIONS:
         st.info(PAGE_DESCRIPTIONS.get(page, ""), icon="💡")
 
     routes[page](controls)

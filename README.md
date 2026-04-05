@@ -20,10 +20,13 @@ streamlit run app/app.py
 
 Expected pages and primary user inputs:
 
-- **Curve calibration page**: upload/load market term-structure inputs (spot/forward tenors, yields, optional weighting) and run parametric fitting diagnostics.
-- **Cross-currency & CIP page**: provide domestic/foreign rates plus FX spot-forward inputs to inspect implied basis and CIP premium decomposition.
-- **Short-rate FRA page**: provide FRA contract terms, calibration targets, and model parameters to run Ho-Lee/Hull-White pricing and fit checks.
-- **Risk & stress page**: provide portfolio exposures, scenario shocks, and hedge constraints to run propagation, optimisation, and tail-risk summaries.
+- **Start here**: concise onboarding flow for traders, including recommended page order and interpretation guidance.
+- **CIP basis**: fast parity check using spot, forward points, tenor, and domestic/foreign OIS assumptions.
+- **Cross-currency**: residual-basis diagnostics to assess funding/basis dislocations and quote consistency.
+- **Short-rate FRA**: FRA valuation and convexity analysis under static, Ho-Lee, and Hull-White model settings.
+
+> Current routed pages in `app/app.py`: `Start here`, `CIP basis`, `Cross-currency`, `Short-rate FRA`.
+> Additional modules in `app/pages/` (for example `risk_pnl.py` and `stress_lab.py`) are present in the repository but are not wired into the default router.
 
 > Rationale: Streamlit is used to consolidate previously notebook-scattered workflows into one cohesive interface while keeping domain logic modular in `src/*`.
 

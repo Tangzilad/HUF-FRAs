@@ -29,7 +29,7 @@ SCENARIO_PRELOAD_MAP = {
 }
 HEDGE_MAP = {"USD FRA": "FRA", "XCCY Basis Swap": "XCCY_BasisSwap"}
 EXPLANATION_MODE_MAP = {"Basic": "basic", "Learning": "learning"}
-PAGES = ["CIP basis", "Cross-currency", "Short-rate FRA"]
+PAGES = ["Start here", "CIP basis", "Cross-currency", "Short-rate FRA"]
 
 
 @dataclass
@@ -47,7 +47,7 @@ class SidebarControls:
     custom_shocks_bp: dict[str, float]
     hedge_instruments: list[str]
     explanation_mode: str
-    active_page: str = "CIP basis"
+    active_page: str = "Start here"
     uploaded_curve: pd.DataFrame | None = None
     warnings: list[str] = field(default_factory=list)
 
@@ -168,7 +168,7 @@ def render_sidebar_controls(defaults: Mapping[str, Any] | None = None, uploaded_
             )
             custom_shocks_bp = {"front": 0.0, "belly": 0.0, "back": 0.0}
     else:
-        active_page = str(defaults.get("active_page", "CIP basis"))
+        active_page = str(defaults.get("active_page", "Start here"))
         valuation_date = defaults.get("valuation_date", date.today())
         curve_source_display = defaults.get("curve_source", "Synthetic")
         fra_labels = defaults.get("fra_labels", ["3x6"])

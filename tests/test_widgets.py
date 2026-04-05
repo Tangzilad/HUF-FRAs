@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.widgets import render_sidebar_controls
+from app.widgets import PAGES, render_sidebar_controls
+
+
+def test_page_list_starts_with_start_here() -> None:
+    assert PAGES[0] == "Start here"
 
 
 def test_render_sidebar_controls_normalizes_outputs() -> None:
@@ -53,3 +57,8 @@ def test_render_sidebar_controls_warns_and_falls_back_for_bad_upload() -> None:
     assert controls.hedge_instruments == ["FRA"]
     assert any("missing required fields" in w.lower() for w in controls.warnings)
     assert any("reverted to synthetic" in w.lower() for w in controls.warnings)
+
+
+def test_render_sidebar_controls_defaults_to_start_here() -> None:
+    controls = render_sidebar_controls(defaults={})
+    assert controls.active_page == "Start here"

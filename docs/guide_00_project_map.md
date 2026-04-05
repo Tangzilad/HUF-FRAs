@@ -16,36 +16,28 @@ This index links every core guide and source module so that navigation stays exp
 ```text
 Streamlit app shell (`app/app.py`)
   -> shared state and widgets (session state, controls, upload/select inputs)
-     -> page modules (calibration, CIP/cross-currency, FRA/short-rate, risk/stress)
+     -> page modules (start page, CIP basis, cross-currency diagnostics, FRA/short-rate valuation)
         -> analytics engines in `src/*`
 ```
 
-Cross-links from expected app pages to underlying modules:
+Cross-links from routed app pages to underlying modules:
 
-- **Curve calibration page**
-  - [`src/data/loaders/core.py`](../src/data/loaders/core.py)
-  - [`src/data/loaders/market_loaders.py`](../src/data/loaders/market_loaders.py)
-  - [`src/curves/parametric.py`](../src/curves/parametric.py)
-  - [`src/explainers/curve_fit.py`](../src/explainers/curve_fit.py)
-  - [`src/visualization/market_diagnostics.py`](../src/visualization/market_diagnostics.py)
-- **Cross-currency & CIP page**
-  - [`src/curves/cross_currency.py`](../src/curves/cross_currency.py)
+- **Start here**
+  - [`app/pages/home.py`](../app/pages/home.py)
+- **CIP basis**
   - [`src/analytics/cip_premium.py`](../src/analytics/cip_premium.py)
-  - [`src/explainers/cross_currency.py`](../src/explainers/cross_currency.py)
   - [`src/explainers/cip.py`](../src/explainers/cip.py)
+- **Cross-currency**
+  - [`src/curves/cross_currency.py`](../src/curves/cross_currency.py)
+  - [`src/explainers/cross_currency.py`](../src/explainers/cross_currency.py)
 - **Short-rate FRA page**
   - [`src/models/short_rate/calibration.py`](../src/models/short_rate/calibration.py)
   - [`src/models/short_rate/fra.py`](../src/models/short_rate/fra.py)
   - [`src/models/short_rate/ho_lee.py`](../src/models/short_rate/ho_lee.py)
   - [`src/models/short_rate/hull_white.py`](../src/models/short_rate/hull_white.py)
   - [`src/explainers/short_rate.py`](../src/explainers/short_rate.py)
-- **Risk & stress page**
-  - [`src/risk/portfolio_shocks.py`](../src/risk/portfolio_shocks.py)
-  - [`src/risk/hedging_optimizer.py`](../src/risk/hedging_optimizer.py)
-  - [`src/risk/tail_risk.py`](../src/risk/tail_risk.py)
-  - [`src/risk/backtesting.py`](../src/risk/backtesting.py)
-  - [`src/explainers/risk.py`](../src/explainers/risk.py)
-  - [`src/explainers/risk_scenario.py`](../src/explainers/risk_scenario.py)
+
+> Note: `app/pages/risk_pnl.py` and `app/pages/stress_lab.py` exist but are not currently included in the routed navigation.
 
 > Rationale note: Streamlit is used to unify previously notebook-scattered workflows into a single interface while preserving modular analytics code in `src/*`.
 
