@@ -1,3 +1,6 @@
+from .parametric_curve import ParametricCurveExplainer
+
+__all__ = ["ParametricCurveExplainer"]
 """Markdown explainers for core analytics modules."""
 
 from .base import BaseExplainer
