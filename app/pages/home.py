@@ -24,14 +24,18 @@ def render(controls: dict[str, float | str | bool]) -> None:
     )
 
     st.info(
-        "**Suggested path:** CIP basis -> Cross-currency -> Short-rate FRA -> Risk P&L -> Stress Lab",
+        "**Suggested path:** CIP basis → Cross-currency → Short-rate FRA → Risk P&L → Stress Lab",
         icon="🧭",
     )
 
     st.write(
-        "Run pages in order. **CIP basis** checks parity coherence, **Cross-currency** isolates funding dislocation, "
-        "**Short-rate FRA** prices and compares model sensitivity, **Risk P&L** maps exposures into explainable "
-        "carry/curve/vol buckets, and **Stress Lab** tests hedge robustness under shocks."
+        "Work in sequence. Start with **CIP basis** to check parity coherence, then move to **Cross-currency** "
+        "to isolate funding dislocation, and then to **Short-rate FRA** for pricing/model sensitivity once market "
+        "structure is clear."
+    )
+    st.write(
+        "After that, run **Risk P&L** to map exposures into explainable carry/curve/vol buckets and finish in "
+        "**Stress Lab** to test hedge robustness under shocks."
     )
     st.write(
         "Use synthetic scenarios first for intuition and sign checks. Move to uploads only after tenor mapping, quote "
