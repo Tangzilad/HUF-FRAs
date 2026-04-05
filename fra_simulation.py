@@ -9,6 +9,7 @@ import importlib
 import importlib.util
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 HAS_NUMPY = importlib.util.find_spec("numpy") is not None
@@ -153,6 +154,18 @@ CODEX_STARTER_TASKS = [
         "success_criteria": "Output shows optimal notionals, objective value, and binding constraints.",
     },
 ]
+
+
+def ensure_output_dir(output_dir: str) -> Path:
+    path = Path(output_dir)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def save_dataframe(df: pd.DataFrame, output_dir: Path, filename: str) -> Path:
+    path = output_dir / filename
+    df.to_csv(path, index=False)
+    return path
 
 
 @dataclass
@@ -574,9 +587,13 @@ def plot_results(bucket_df: pd.DataFrame, title: str, value_col: str = "pnl") ->
     plt.tight_layout()
 
 
-def demo(config: SimulationConfig = DEFAULT_CONFIG) -> None:
+def demo(config: SimulationConfig = DEFAULT_CONFIG, output_dir: Optional[Path] = None) -> None:
     if not HAS_MATPLOTLIB or not HAS_SEABORN:
         print("Plotting libraries not installed; running demo in text-only mode.")
+    demo_dir = None
+    if output_dir is not None:
+        demo_dir = output_dir / "demo"
+        demo_dir.mkdir(parents=True, exist_ok=True)
     scenarios = [("tariff_liberation", False, False), ("war_shock", True, False), ("debt_crisis", False, True)]
     for regime, steep, flat in scenarios:
         results = run_scenario(regime, config, steepening=steep, flattening=flat)
@@ -590,6 +607,12 @@ def demo(config: SimulationConfig = DEFAULT_CONFIG) -> None:
         anchor["pv_diff_dual_minus_single"] = anchor["dual_curve_pv"] - anchor["single_curve_pv"]
         print("\nDual-Curve Validation:")
         print(anchor.to_string(index=False))
+        if demo_dir is not None:
+            save_dataframe(results["huf_gran"], demo_dir, f"{regime}_huf_granular.csv")
+            save_dataframe(results["huf_bucket"], demo_dir, f"{regime}_huf_bucket.csv")
+            save_dataframe(results["hedge"], demo_dir, f"{regime}_hedge_summary.csv")
+            save_dataframe(results["hedge_optimized"], demo_dir, f"{regime}_hedge_optimized.csv")
+            save_dataframe(anchor, demo_dir, f"{regime}_dual_curve_validation.csv")
         plot_curves(results["base_curve"], results["shocked_curve"], title=regime)
         plot_results(results["huf_bucket"], title=regime, value_col="pnl")
     if HAS_MATPLOTLIB and plt is not None:
@@ -653,7 +676,9 @@ def run_historical_mode(args: argparse.Namespace) -> None:
                 "hedge_residual": hedge["net_pnl_after_hedge"],
             }
         )
-    print(pd.DataFrame(rows).to_string(index=False))
+    out = pd.DataFrame(rows)
+    print(out.to_string(index=False))
+    save_dataframe(out, ensure_output_dir(args.output_dir), "historical_episode_summary.csv")
 
 
 def run_risk_mode(args: argparse.Namespace) -> None:
@@ -678,6 +703,12 @@ def run_risk_mode(args: argparse.Namespace) -> None:
     print(factors.to_string(index=False))
     print("\nExplained variance:", np.round(pca["explained_variance"], 4))
     print("Portfolio factor exposures:", np.round(exp, 4))
+    out_dir = ensure_output_dir(args.output_dir)
+    save_dataframe(key, out_dir, "risk_key_rate_dv01.csv")
+    save_dataframe(factors, out_dir, "risk_pca_loadings.csv")
+    pd.DataFrame(
+        [{"factor": idx + 1, "explained_variance": val, "portfolio_exposure": exp[idx]} for idx, val in enumerate(pca["explained_variance"])]
+    ).to_csv(out_dir / "risk_pca_summary.csv", index=False)
 
 
 def run_convexity_mode(args: argparse.Namespace) -> None:
@@ -686,14 +717,20 @@ def run_convexity_mode(args: argparse.Namespace) -> None:
     print("=== Convexity assumptions ===")
     print("Stylized Gaussian short-rate convexity; interpret as model-risk indicator, not executable quote.")
     print(table.to_string(index=False))
+    out_dir = ensure_output_dir(args.output_dir)
+    save_dataframe(table, out_dir, "convexity_grid.csv")
     if args.save_plot:
         if not HAS_MATPLOTLIB or plt is None or not HAS_SEABORN or sns is None:
             raise RuntimeError("Cannot save convexity plot because matplotlib/seaborn are not installed.")
         plt.figure(figsize=(7, 4))
         sns.lineplot(data=table, x="tenor", y="convexity_bp", hue="vol_assumption", marker="o")
         plt.tight_layout()
-        plt.savefig(args.save_plot, dpi=150)
-        print(f"Saved plot: {args.save_plot}")
+        plot_path = Path(args.save_plot)
+        if not plot_path.is_absolute():
+            plot_path = out_dir / plot_path
+        plot_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(plot_path, dpi=150)
+        print(f"Saved plot: {plot_path}")
 
 
 def run_optimize_mode(args: argparse.Namespace) -> None:
@@ -703,6 +740,9 @@ def run_optimize_mode(args: argparse.Namespace) -> None:
     print(results["hedge"].to_string(index=False))
     print("\n=== Optimizer diagnostics ===")
     print(results["hedge_optimized"].to_string(index=False))
+    out_dir = ensure_output_dir(args.output_dir)
+    save_dataframe(results["hedge"], out_dir, "optimize_legacy_hedge.csv")
+    save_dataframe(results["hedge_optimized"], out_dir, "optimize_hedge_optimized.csv")
 
 
 def _parse_mode() -> argparse.Namespace:
@@ -713,20 +753,31 @@ def _parse_mode() -> argparse.Namespace:
     parser.add_argument("--objective", default="dv01", choices=["dv01", "pnl"], help="Hedge objective.")
     parser.add_argument("--dual-curve-spread-bp", type=float, default=DEFAULT_CONFIG.dual_curve_spread_bp)
     parser.add_argument("--save-plot", default=None)
+    parser.add_argument("--output-dir", default="outputs", help="Central directory for generated output artifacts.")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = _parse_mode()
     cfg = SimulationConfig(dual_curve_spread_bp=args.dual_curve_spread_bp, hedge_target=args.objective)
+    out_dir = ensure_output_dir(args.output_dir)
     if args.mode == "demo":
-        demo(cfg)
+        demo(cfg, output_dir=out_dir)
     elif args.mode == "theory":
         print_theory_notes()
+        (out_dir / "theory_notes.txt").write_text(THEORY_NOTES.strip() + "\n", encoding="utf-8")
     elif args.mode == "roadmap":
         print_learning_roadmap()
+        (out_dir / "roadmap.txt").write_text(
+            "\n".join([f"{i+1}. {x['name']} | Objective: {x['objective']} | Deliverable: {x['deliverable']}" for i, x in enumerate(PROJECT_ROADMAP)]) + "\n",
+            encoding="utf-8",
+        )
     elif args.mode == "tasks":
         print_codex_starter_tasks()
+        (out_dir / "tasks.txt").write_text(
+            "\n".join([f"{i+1}. {x['task']} | Phase: {x['phase']} | Run: {x['command']} | Done when: {x['success_criteria']}" for i, x in enumerate(CODEX_STARTER_TASKS)]) + "\n",
+            encoding="utf-8",
+        )
     elif args.mode == "historical":
         run_historical_mode(args)
     elif args.mode == "risk":
