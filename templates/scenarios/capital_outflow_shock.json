@@ -1,0 +1,8 @@
+{
+  "name": "capital_outflow_shock",
+  "description": "Foreign capital exits EM local markets, rates + basis widen, FX weakens.",
+  "rates_bp": {"front": 120.0, "belly": 95.0, "back": 70.0},
+  "fx_pct": {"spot": 8.0, "vol": 20.0},
+  "basis_bp": {"front": 35.0, "belly": 30.0, "back": 25.0},
+  "risk_off": {"vix": 12.0, "credit_spread_bp": 70.0}
+}

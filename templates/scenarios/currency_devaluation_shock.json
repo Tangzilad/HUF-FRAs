@@ -1,0 +1,8 @@
+{
+  "name": "currency_devaluation_shock",
+  "description": "Policy break drives abrupt devaluation and imported inflation repricing.",
+  "rates_bp": {"front": 180.0, "belly": 140.0, "back": 90.0},
+  "fx_pct": {"spot": 15.0, "vol": 35.0},
+  "basis_bp": {"front": 50.0, "belly": 42.0, "back": 30.0},
+  "risk_off": {"vix": 18.0, "credit_spread_bp": 95.0}
+}
