@@ -1,6 +1,5 @@
-from .parametric import FitResult, fit_parametric_curve, nelson_siegel, svensson
+"""Curve fitting and cross-currency calibration primitives."""
 
-__all__ = ["FitResult", "fit_parametric_curve", "nelson_siegel", "svensson"]
 from .cross_currency import (
     CollateralSpec,
     CrossCurrencyCurveBundle,
@@ -15,8 +14,13 @@ from .cross_currency import (
     discount_factor,
     extract_fx_implied_basis,
 )
+from .parametric import FitResult, fit_parametric_curve, nelson_siegel, svensson
 
 __all__ = [
+    "FitResult",
+    "fit_parametric_curve",
+    "nelson_siegel",
+    "svensson",
     "CollateralSpec",
     "CrossCurrencyCurveBundle",
     "CurveDiagnostics",
