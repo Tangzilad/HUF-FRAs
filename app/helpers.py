@@ -1,17 +1,39 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Any, BinaryIO, Callable, Dict, Iterable
 
 import numpy as np
 import pandas as pd
 
+from app.state import (
+    STATE_KEY_COMPUTE_FINGERPRINT,
+    STATE_KEY_FRA_PAIR,
+    STATE_KEY_NOTIONAL,
+    STATE_KEY_PIPELINE_OUTPUTS,
+    compute_fingerprint_from_state,
+)
 from src.analytics.cip_premium import compute_raw_cip_deviation
 from src.curves.cross_currency import build_discount_curve
+from src.data.loaders.core import MarketQuote, QuoteCollection, QuoteValidationError, validate_quotes
+from src.data.loaders.market_loaders import load_bond_yields
+from src.explainers.cip import CIPExplainer
+from src.explainers.cross_currency import CrossCurrencyExplainer
+from src.explainers.curve_fit import CurveFitExplainer
+from src.explainers.policy_narrative import PolicyNarrativeExplainer
+from src.explainers.risk import RiskExplainer
+from src.explainers.risk_scenario import RiskScenarioExplainer
+from src.explainers.short_rate import ShortRateExplainer
 from src.models.short_rate.fra import simulate_fra_distribution
 from src.models.short_rate.ho_lee import HoLeeModel
 from src.risk.portfolio_shocks import Trade, decompose_pnl, propagate_scenario
 from src.risk.scenarios.em_scenarios import em_scenario_library
 
+
+# ---------- Pipeline engines ----------
 
 def build_curve_table(payload: Dict[str, Any]) -> pd.DataFrame:
     rows: list[dict[str, float | str]] = []
@@ -60,24 +82,31 @@ def run_cip_path(payload: Dict[str, Any]) -> pd.DataFrame:
         forwards[t] = spot * (1 + domestic_ois[t] * t) / (1 + foreign_ois[t] * t)
 
     raw = compute_raw_cip_deviation(spot, forwards, domestic_ois, foreign_ois)
-    raw_bp = raw["raw_basis_bp"]
-    return raw_bp.reset_index(names="date").melt(id_vars="date", var_name="tenor_years", value_name="raw_basis_bp")
-from dataclasses import dataclass
-from typing import Callable
+    return raw["raw_basis_bp"].reset_index(names="date").melt(id_vars="date", var_name="tenor_years", value_name="raw_basis_bp")
 
-from src.explainers.cip import CIPExplainer
-from src.explainers.cross_currency import CrossCurrencyExplainer
-from src.explainers.curve_fit import CurveFitExplainer
-from src.explainers.policy_narrative import PolicyNarrativeExplainer
-from src.explainers.risk import RiskExplainer
-from src.explainers.risk_scenario import RiskScenarioExplainer
-from src.explainers.short_rate import ShortRateExplainer
 
+def ensure_pipeline_outputs(state: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Memoize top-level app outputs and invalidate when fingerprint changes."""
+
+    fp = compute_fingerprint_from_state(state)
+    if state.get(STATE_KEY_COMPUTE_FINGERPRINT) == fp and STATE_KEY_PIPELINE_OUTPUTS in state:
+        return state[STATE_KEY_PIPELINE_OUTPUTS]
+
+    outputs = {
+        "valuation": {"pv": 0.0, "fra_pair": state.get(STATE_KEY_FRA_PAIR, "3x6"), "notional": state.get(STATE_KEY_NOTIONAL, 1_000_000.0)},
+        "risk": {"scenario": "base"},
+        "xccy": {"cip_mean_bp": 0.0},
+        "pricing": {"fra_pair": state.get(STATE_KEY_FRA_PAIR, "3x6")},
+    }
+    state[STATE_KEY_PIPELINE_OUTPUTS] = outputs
+    state[STATE_KEY_COMPUTE_FINGERPRINT] = fp
+    return outputs
+
+
+# ---------- Explainer helpers ----------
 
 @dataclass(frozen=True)
 class ExplainerPanel:
-    """UI-ready explanation panel payload."""
-
     title: str
     help_text: str | None
     why_this_matters: str | None
@@ -86,52 +115,26 @@ class ExplainerPanel:
 
 CORE_CONCEPTS: dict[str, dict[str, str]] = {
     "forward_curve_construction": {
-        "help_text": (
-            "Forward curve construction turns today's spot/discount inputs into implied future funding rates "
-            "so pricing and hedging stay internally consistent across maturities."
-        ),
-        "why_this_matters": (
-            "If the forward curve is built inconsistently, your FRA marks and hedge P&L can drift for technical reasons "
-            "instead of real market moves. A clean forward curve keeps valuation, risk, and trading decisions aligned."
-        ),
+        "help_text": "Forward curve construction maps current market data into internally consistent future rates.",
+        "why_this_matters": "Consistent forward curves prevent technical mispricing in valuation and hedging.",
     },
     "convexity": {
-        "help_text": (
-            "Convexity means price sensitivity is curved, not linear: larger rate moves create disproportionately larger P&L effects."
-        ),
-        "why_this_matters": (
-            "Ignoring convexity can make futures-vs-FRA comparisons look cheap or rich for the wrong reason. "
-            "Including it improves hedge sizing under volatility spikes."
-        ),
+        "help_text": "Convexity captures non-linear price sensitivity to rate changes.",
+        "why_this_matters": "Ignoring convexity can distort futures-vs-FRA comparisons and hedge sizing.",
     },
     "pnl_decomposition": {
-        "help_text": (
-            "P&L decomposition separates carry, curve shift, basis move, and residual terms so you can see what really drove performance."
-        ),
-        "why_this_matters": (
-            "Without decomposition, it is easy to confuse good carry with hidden directional risk. "
-            "Decomposition helps desks adjust exposures before losses compound."
-        ),
+        "help_text": "P&L decomposition splits carry, curve shift, basis move, and residual effects.",
+        "why_this_matters": "Component-level attribution improves diagnosis and risk response.",
     },
     "cip_decomposition": {
-        "help_text": (
-            "CIP decomposition splits observed basis into risk-free parity, credit/liquidity components, and residual funding premium."
-        ),
-        "why_this_matters": (
-            "This distinction matters because structural credit costs and temporary funding stress imply different trade horizons "
-            "and different hedging choices."
-        ),
+        "help_text": "CIP decomposition separates parity mechanics from funding/credit effects.",
+        "why_this_matters": "Different basis drivers imply different trade horizon and hedging choices.",
     },
     "hedge_rationale": {
-        "help_text": (
-            "Hedge rationale explains which risk bucket is being neutralized, what residual exposure remains, and why that trade-off is acceptable."
-        ),
-        "why_this_matters": (
-            "A clear hedge rationale prevents over-hedging and helps stakeholders understand expected protection versus carry drag."
-        ),
+        "help_text": "Hedge rationale states what risk is neutralized and what remains intentionally open.",
+        "why_this_matters": "Clear hedge rationale improves governance and prevents over-hedging.",
     },
 }
-
 
 EXPLAINER_LOADERS: dict[str, Callable[[], str]] = {
     "cip": lambda: CIPExplainer().explain(),
@@ -145,8 +148,6 @@ EXPLAINER_LOADERS: dict[str, Callable[[], str]] = {
 
 
 class SharedExplainerAdapter:
-    """Shared adapter that packages explanation text for app-level rendering."""
-
     def __init__(self, explanation_mode: bool, basic_mode: bool = True) -> None:
         self.explanation_mode = bool(explanation_mode)
         self.basic_mode = bool(basic_mode)
@@ -157,27 +158,19 @@ class SharedExplainerAdapter:
             return ExplainerPanel(title=title, help_text=None, why_this_matters=None, markdown=markdown)
 
         concept_copy = CORE_CONCEPTS[concept]
-        help_text = concept_copy["help_text"]
-
-        # In basic mode we keep only lightweight tooltips/help to avoid UI clutter.
-        why_this_matters = None if self.basic_mode else concept_copy["why_this_matters"]
-        return ExplainerPanel(title=title, help_text=help_text, why_this_matters=why_this_matters, markdown=markdown)
+        return ExplainerPanel(
+            title=title,
+            help_text=concept_copy["help_text"],
+            why_this_matters=None if self.basic_mode else concept_copy["why_this_matters"],
+            markdown=markdown,
+        )
 
 
 def build_shared_explainer_adapter(*, explanation_mode: bool, basic_mode: bool = True) -> SharedExplainerAdapter:
-    """Factory used by app pages to consistently render explanation affordances."""
-
     return SharedExplainerAdapter(explanation_mode=explanation_mode, basic_mode=basic_mode)
-from datetime import datetime, timezone
-from pathlib import Path
-from tempfile import NamedTemporaryFile
-from typing import BinaryIO, Iterable
 
-import pandas as pd
 
-from src.data.loaders.core import MarketQuote, QuoteCollection, QuoteValidationError, validate_quotes
-from src.data.loaders.market_loaders import load_bond_yields
-
+# ---------- Curve ingestion helpers ----------
 
 class CurveSchemaError(ValueError):
     """Raised when uploaded/manual curve input does not satisfy schema expectations."""
@@ -235,10 +228,7 @@ def _normalize_uploaded_schema(df: pd.DataFrame, source: str) -> pd.DataFrame:
         parsed = pd.to_datetime(df[date_col], errors="coerce", utc=True)
         if parsed.isna().any():
             bad_rows = parsed.index[parsed.isna()].tolist()
-            raise CurveSchemaError(
-                "Schema mismatch: date/timestamp column contains unparsable values "
-                f"at row(s) {bad_rows}."
-            )
+            raise CurveSchemaError(f"Schema mismatch: date/timestamp column contains unparsable values at row(s) {bad_rows}.")
         out["timestamp"] = parsed
     else:
         out["timestamp"] = datetime.now(timezone.utc)
@@ -274,8 +264,6 @@ def _frame_to_quote_collection(normalized_df: pd.DataFrame, required_tenors: Ite
 
 
 def load_default_synthetic_curve(csv_path: str | Path, required_tenors: list[str]) -> CurveIngestionResult:
-    """Default ingestion route uses shared market loader + validation utilities."""
-
     return CurveIngestionResult(source="synthetic", quotes=load_bond_yields(csv_path, required_tenors=required_tenors))
 
 
@@ -297,8 +285,6 @@ def select_curve_source(
     uploaded_curve: CurveIngestionResult | None,
     manual_curve: CurveIngestionResult | None,
 ) -> CurveIngestionResult:
-    """Manual or upload overrides synthetic only when complete and valid (already validated)."""
-
     if manual_curve is not None:
         return manual_curve
     if uploaded_curve is not None:
@@ -307,58 +293,8 @@ def select_curve_source(
 
 
 def parse_uploaded_curve_via_default_loader(file_obj: BinaryIO, required_tenors: list[str]) -> CurveIngestionResult:
-    """Adapter that routes uploaded CSV through the default loader path for consistency."""
-
     with NamedTemporaryFile(mode="wb", suffix=".csv", delete=True) as tmp:
         tmp.write(file_obj.read())
         tmp.flush()
         quotes = load_bond_yields(tmp.name, required_tenors=required_tenors)
     return CurveIngestionResult(source="uploaded", quotes=quotes)
-"""Shared helpers for formatting, adapters, and validation."""
-
-from __future__ import annotations
-
-from typing import Iterable
-
-import pandas as pd
-
-
-def validate_positive(label: str, value: float) -> None:
-    """Raise ``ValueError`` if ``value`` is not strictly positive."""
-
-    if value <= 0.0:
-        raise ValueError(f"{label} must be positive, received {value}.")
-
-
-def to_panel_dataframe(
-    *,
-    spot: float,
-    forward: float,
-    domestic_ois: float,
-    foreign_ois: float,
-    tenor_years: Iterable[float],
-) -> tuple[pd.Series, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Build tenor-aligned inputs for CIP analytics from scalar controls."""
-
-    tenor_idx = [float(t) for t in tenor_years]
-    spot_series = pd.Series([spot], index=[pd.Timestamp("today").normalize()], dtype=float)
-    forward_df = pd.DataFrame([[forward for _ in tenor_idx]], index=spot_series.index, columns=tenor_idx, dtype=float)
-    domestic_df = pd.DataFrame(
-        [[domestic_ois for _ in tenor_idx]],
-        index=spot_series.index,
-        columns=tenor_idx,
-        dtype=float,
-    )
-    foreign_df = pd.DataFrame(
-        [[foreign_ois for _ in tenor_idx]],
-        index=spot_series.index,
-        columns=tenor_idx,
-        dtype=float,
-    )
-    return spot_series, forward_df, domestic_df, foreign_df
-
-
-def format_bp(value: float) -> str:
-    """Format decimal value in basis points."""
-
-    return f"{value:,.2f} bp"
