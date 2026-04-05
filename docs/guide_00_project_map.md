@@ -9,6 +9,7 @@ This index links every core guide and source module so that navigation stays exp
 - [Practitioner notes](./practitioner_notes.md)
 - [Theory notes](./theory_notes.md)
 - [CIP premium assumptions](./cip_premium_assumptions.md)
+- [Verification audit (2026-04-05)](./verification_audit_2026-04-05.md)
 
 ## Notebook workflows
 - [HUF-USD end-to-end calibration](../notebooks/huf_usd_end_to_end_calibration.ipynb)
