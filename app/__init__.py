@@ -1,5 +1,5 @@
-"""Application helpers and UI adapters."""
+"""Streamlit app package for interactive analytics views."""
 
-from .helpers import CORE_CONCEPTS, ExplainerPanel, SharedExplainerAdapter, build_shared_explainer_adapter
+from .app import main
 
-__all__ = ["CORE_CONCEPTS", "ExplainerPanel", "SharedExplainerAdapter", "build_shared_explainer_adapter"]
+__all__ = ["main"]
