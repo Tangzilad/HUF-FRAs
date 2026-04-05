@@ -134,7 +134,19 @@ def _build_pca_diagnostics() -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
     return loadings, variance
 
 
-def main() -> None:
+def render(controls: dict[str, Any] | None = None) -> None:
+    controls = controls or {}
+
+    if isinstance(controls, dict):
+        if "selected_scenario" in controls:
+            st.session_state["selected_scenario"] = controls["selected_scenario"]
+        if "selected_short_rate_model" in controls:
+            st.session_state["selected_short_rate_model"] = controls["selected_short_rate_model"]
+        if "risk_portfolio" in controls:
+            st.session_state["risk_portfolio"] = controls["risk_portfolio"]
+        if "short_rate_curve" in controls:
+            st.session_state["short_rate_curve"] = controls["short_rate_curve"]
+
     st.title("Risk P&L")
 
     selected_scenario = _resolve_scenario(st.session_state.get("selected_scenario"))
@@ -238,6 +250,10 @@ def main() -> None:
     st.subheader("Download-ready tabular objects")
     st.write("The following tables are available in `st.session_state['risk_pnl_export_tables']` for export workflow:")
     st.json({name: list(df.columns) for name, df in export_tables.items()})
+
+
+def main() -> None:
+    render()
 
 
 if __name__ == "__main__":

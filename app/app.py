@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from .helpers import build_curve_table, ensure_pipeline_outputs, run_cip_path, run_pricing_engine, run_risk_engine
 from .state import build_state, init_state
@@ -26,26 +26,70 @@ def run_app(state: dict[str, Any] | None = None) -> dict[str, Any]:
     return ensure_pipeline_outputs(data)
 
 
+def _render_home(controls: Any) -> None:
+    from app.pages import render_home_page
+
+    render_home_page(controls)
+
+
+def _render_cip(controls: Any) -> None:
+    from app.pages import render_cip_page
+
+    render_cip_page(controls)
+
+
+def _render_cross_currency(controls: Any) -> None:
+    from app.pages import render_cross_currency_page
+
+    render_cross_currency_page(controls)
+
+
+def _render_short_rate(controls: Any) -> None:
+    from app.pages import render_short_rate_page
+
+    render_short_rate_page(controls)
+
+
+def _render_risk_pnl(controls: Any) -> None:
+    from app.pages import render_risk_pnl_page
+
+    render_risk_pnl_page(controls)
+
+
+def _render_stress_lab(controls: Any) -> None:
+    from app.pages import render_stress_lab_page
+
+    render_stress_lab_page(controls)
+
+
+def build_routes() -> dict[str, Callable[[Any], None]]:
+    return {
+        "Start here": _render_home,
+        "CIP basis": _render_cip,
+        "Cross-currency": _render_cross_currency,
+        "Short-rate FRA": _render_short_rate,
+        "Risk P&L": _render_risk_pnl,
+        "Stress Lab": _render_stress_lab,
+    }
+
+
+PAGE_ROUTES = build_routes()
+
+
 def main() -> None:
     """Main Streamlit entrypoint for analytics UI."""
 
     import streamlit as st
 
-    from app.pages import render_cip_page, render_cross_currency_page, render_home_page, render_short_rate_page
     from app.state import initialize_state
     from app.widgets import render_sidebar_controls
-
-    routes = {
-        "Start here": render_home_page,
-        "CIP basis": render_cip_page,
-        "Cross-currency": render_cross_currency_page,
-        "Short-rate FRA": render_short_rate_page,
-    }
 
     PAGE_DESCRIPTIONS = {
         "CIP basis": "Explore how covered interest parity links FX forwards to interest rate differentials, and detect funding stress through basis deviations.",
         "Cross-currency": "Inspect FX-implied basis residuals that reveal whether cross-currency curves are internally consistent with observed forwards.",
         "Short-rate FRA": "Price FRA contracts using stochastic short-rate models (Ho-Lee / Hull-White) and analyse convexity adjustments across volatility regimes.",
+        "Risk P&L": "Decompose scenario P&L into rates, FX, and basis drivers while surfacing roll-down and convexity effects by tenor bucket.",
+        "Stress Lab": "Prototype stress shocks, blend custom rates/FX/basis moves, and evaluate hedge what-if optimization outcomes.",
     }
 
     st.set_page_config(page_title="HUF FRA Analytics", page_icon="📈", layout="wide")
@@ -60,7 +104,7 @@ def main() -> None:
     if is_learning and page in PAGE_DESCRIPTIONS:
         st.info(PAGE_DESCRIPTIONS.get(page, ""), icon="💡")
 
-    routes[page](controls)
+    PAGE_ROUTES[page](controls)
 
 
 if __name__ == "__main__":

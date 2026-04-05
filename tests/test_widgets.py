@@ -5,8 +5,11 @@ import pandas as pd
 from app.widgets import PAGES, render_sidebar_controls
 
 
-def test_page_list_starts_with_start_here() -> None:
-    assert PAGES[0] == "Start here"
+EXPECTED_PAGES = ["Start here", "CIP basis", "Cross-currency", "Short-rate FRA", "Risk P&L", "Stress Lab"]
+
+
+def test_navigation_page_list_exact_and_ordered() -> None:
+    assert PAGES == EXPECTED_PAGES
 
 
 def test_render_sidebar_controls_normalizes_outputs() -> None:
