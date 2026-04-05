@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 from .helpers import build_curve_table, ensure_pipeline_outputs, run_cip_path, run_pricing_engine, run_risk_engine
@@ -71,7 +72,15 @@ def main() -> None:
     if is_learning and page in PAGE_DESCRIPTIONS:
         st.info(PAGE_DESCRIPTIONS.get(page, ""), icon="💡")
 
-    routes[page](controls)
+    def render_in_shell(page_label: str) -> None:
+        renderer = routes[page_label]
+        params = inspect.signature(renderer).parameters
+        if len(params) == 0:
+            renderer()
+            return
+        renderer(controls)
+
+    render_in_shell(page)
 
 
 if __name__ == "__main__":

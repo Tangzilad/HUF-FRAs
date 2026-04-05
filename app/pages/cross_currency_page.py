@@ -21,7 +21,7 @@ def _is_learning(controls: Any) -> bool:
 def render(controls: dict[str, float | str | bool]) -> None:
     """Render one-tenor FX-implied basis diagnostics."""
 
-    st.subheader("Cross-currency diagnostics")
+    st.subheader("Cross-currency")
     learning = _is_learning(controls)
 
     if learning:
