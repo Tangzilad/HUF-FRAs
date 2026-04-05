@@ -9,6 +9,7 @@ from .policy_narrative import PolicyNarrativeExplainer
 from .risk import RiskExplainer
 from .risk_scenario import RiskScenarioExplainer
 from .short_rate import ShortRateExplainer, summarize_convexity_table
+from .simulation_narrative import FRASimContext, ScenarioContext, SimulationNarrativeGenerator
 
 __all__ = [
     "BaseExplainer",
@@ -21,4 +22,7 @@ __all__ = [
     "RiskScenarioExplainer",
     "PolicyNarrativeExplainer",
     "summarize_convexity_table",
+    "FRASimContext",
+    "ScenarioContext",
+    "SimulationNarrativeGenerator",
 ]
