@@ -9,6 +9,7 @@ import streamlit as st
 from src.analytics import compute_raw_cip_deviation, point_in_time_and_panel
 from src.explainers.cip import CIPExplainer
 
+from app.calculation_windows import render_equation_window
 from app.helpers import format_bp, to_panel_dataframe, validate_positive
 
 
@@ -74,6 +75,18 @@ def render(controls: dict[str, float | str | bool]) -> None:
     raw_basis = float(snapshot[("raw_basis_bp", tenor)].iloc[0])
 
     st.metric("Raw CIP basis", format_bp(raw_basis))
+    render_equation_window(
+        title="How Raw CIP basis is calculated",
+        equations=[
+            r"F_{\mathrm{CIP}} = S \times \frac{1 + r_d T}{1 + r_f T}",
+            r"\mathrm{Raw\ Basis}_{bp} = 10{,}000 \times \left(\frac{F_{\mathrm{mkt}}}{S}\times\frac{1 + r_f T}{1 + r_d T} - 1\right)",
+        ],
+        notes=[
+            f"S = {spot:.6f}, F_mkt = {forward:.6f}, T = {tenor:.6f}",
+            f"r_d = {dom:.6f}, r_f = {foreign:.6f}",
+            f"Computed raw basis = {raw_basis:.4f} bp",
+        ],
+    )
 
     if learning:
         if abs(raw_basis) < 5:

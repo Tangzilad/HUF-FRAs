@@ -9,6 +9,7 @@ import streamlit as st
 from src.curves import build_discount_curve, extract_fx_implied_basis
 from src.explainers.cross_currency import CrossCurrencyExplainer
 
+from app.calculation_windows import render_equation_window
 from app.helpers import format_bp, validate_positive
 
 
@@ -72,6 +73,19 @@ def render(controls: dict[str, float | str | bool]) -> None:
     basis_bp = basis_residual * 1e4
 
     st.metric("FX-implied basis residual", format_bp(basis_bp))
+    render_equation_window(
+        title="How FX-implied basis residual is calculated",
+        equations=[
+            r"P_d(T) = e^{-r_d T},\quad P_f(T) = e^{-r_f T}",
+            r"F_{\mathrm{theory}} = S \times \frac{P_f(T)}{P_d(T)}",
+            r"\mathrm{Basis\ Residual}_{bp} = 10{,}000 \times \left(\frac{F_{\mathrm{mkt}}}{F_{\mathrm{theory}}} - 1\right)",
+        ],
+        notes=[
+            f"S = {spot:.6f}, F_mkt = {forward:.6f}, T = {tenor:.6f}",
+            f"r_d = {dom:.6f}, r_f = {foreign:.6f}",
+            f"Computed residual = {basis_bp:.4f} bp",
+        ],
+    )
 
     if learning:
         if abs(basis_bp) < 3:

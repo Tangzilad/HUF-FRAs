@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from app.calculation_windows import render_equation_window
 from src.models.short_rate.fra import convexity_adjustment_summary
 from src.risk.backtesting import scenario_plausibility_check
 from src.risk.factor_models import PCAPreprocessConfig, pca_decompose, prepare_pca_inputs
@@ -190,6 +191,19 @@ def main() -> None:
     st.dataframe(tail["decomposition"], use_container_width=True)
     st.metric("Portfolio VaR 99%", f"{tail['portfolio_var']:,.2f}")
     st.metric("Portfolio ES 99%", f"{tail['portfolio_es']:,.2f}")
+    render_equation_window(
+        title="How P&L, VaR, and ES are calculated",
+        equations=[
+            r"PnL_{\mathrm{trade}} = PnL_{\mathrm{rate}} + PnL_{\mathrm{fx}} + PnL_{\mathrm{basis}} + Carry",
+            r"PnL_{\mathrm{portfolio}} = \sum_i PnL_{\mathrm{trade},i}",
+            r"VaR_{99\%} = -Q_{1\%}(PnL),\quad ES_{99\%} = -\mathbb{E}[PnL \mid PnL \le Q_{1\%}]",
+        ],
+        notes=[
+            f"Scenario = {selected_scenario.name}; portfolio trades = {len(enriched)}",
+            f"Portfolio VaR 99% = {tail['portfolio_var']:,.4f}; ES 99% = {tail['portfolio_es']:,.4f}",
+            "Trade-level sensitivities (DV01, FX delta, basis01, carry) feed each component above.",
+        ],
+    )
 
     st.subheader("Diagnostics")
     pca_loadings, pca_var = _build_pca_diagnostics()
