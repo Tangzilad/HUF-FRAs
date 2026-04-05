@@ -23,6 +23,15 @@ def render(controls: dict[str, float | str | bool]) -> None:
 
     st.subheader("Covered Interest Parity (CIP) basis")
     learning = _is_learning(controls)
+    st.caption("Role on path: parity / no-arbitrage entry check before basis decomposition.")
+
+    if learning:
+        with st.expander("How to read this page", expanded=False):
+            st.markdown(
+                "Start here to answer: **are spot, forward, and rate differentials coherent under no-arbitrage?** "
+                "If the raw basis is persistent or large, move to **Cross-currency** next to diagnose whether the "
+                "gap is structural basis, funding friction, or curve/quote inconsistency."
+            )
 
     if learning:
         with st.expander("What is CIP basis?", expanded=False):

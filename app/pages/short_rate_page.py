@@ -25,6 +25,15 @@ def render(controls: dict[str, float | str | bool]) -> None:
 
     st.subheader("Short-rate FRA convexity")
     learning = _is_learning(controls)
+    st.caption("Role on path: model / convexity interpretation for FRA-vs-futures valuation.")
+
+    if learning:
+        with st.expander("How to read this page", expanded=False):
+            st.markdown(
+                "Read this page as the **valuation interpretation layer**: after parity and basis checks, ask how "
+                "model volatility and settlement mechanics translate into FRA pricing differences. Then move to "
+                "**Risk P&L** to see what those assumptions do to portfolio outcomes under scenarios."
+            )
 
     if learning:
         with st.expander("What is a convexity adjustment?", expanded=False):
@@ -117,8 +126,9 @@ def render(controls: dict[str, float | str | bool]) -> None:
         context=fra_ctx,
         convexity_summary=summary,
     )
-    with st.expander("Auto-generated simulation explanation", expanded=True):
-        st.markdown(narrative)
+    if learning:
+        with st.expander("Auto-generated simulation explanation", expanded=True):
+            st.markdown(narrative)
 
     if learning:
         st.markdown("---")

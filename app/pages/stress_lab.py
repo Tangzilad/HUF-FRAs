@@ -47,6 +47,13 @@ INSTRUMENTS = [
 TENOR_BUCKETS = ["front", "belly", "back", "front", "belly", "back"]
 
 
+def _is_learning_session() -> bool:
+    import streamlit as st
+
+    mode = st.session_state.get("explanation_mode", "basic")
+    return str(mode).lower() == "learning"
+
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -144,6 +151,17 @@ def render() -> None:
 
     st.set_page_config(page_title="Stress Lab", layout="wide")
     st.title("Stress Lab")
+    learning = _is_learning_session()
+    st.caption("Role on path: hedge / action page — what to stress next and how to hedge it.")
+
+    if learning:
+        with st.expander("How to read this page", expanded=False):
+            st.markdown(
+                "Use Stress Lab as the **decision layer**: customize stress shape, evaluate hedge effectiveness, "
+                "and compare objective trade-offs (risk reduction vs carry/liquidity cost). After testing actions, "
+                "loop back to **CIP basis** to re-check parity consistency under the adjusted market view."
+            )
+
     st.caption("Scenario stress + custom shocks + hedge what-if optimization")
 
     scenarios = _merge_scenarios()

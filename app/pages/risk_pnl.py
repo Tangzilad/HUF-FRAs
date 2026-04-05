@@ -23,6 +23,11 @@ TENOR_TO_POINTS = {
 }
 
 
+def _is_learning_session() -> bool:
+    mode = st.session_state.get("explanation_mode", "basic")
+    return str(mode).lower() == "learning"
+
+
 def _resolve_scenario(raw: Any) -> EMScenario:
     scenarios = {s.name: s for s in em_scenario_library()}
     if isinstance(raw, EMScenario):
@@ -136,6 +141,16 @@ def _build_pca_diagnostics() -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
 
 def main() -> None:
     st.title("Risk P&L")
+    learning = _is_learning_session()
+    st.caption("Role on path: portfolio consequence view — what this scenario does to the book.")
+
+    if learning:
+        with st.expander("How to read this page", expanded=False):
+            st.markdown(
+                "Translate upstream diagnostics into **book impact** here: inspect instrument and factor "
+                "decomposition, then scale stress severity with the ladder. After identifying the vulnerable "
+                "risk blocks, move to **Stress Lab** to choose targeted stress designs and hedge actions."
+            )
 
     selected_scenario = _resolve_scenario(st.session_state.get("selected_scenario"))
     selected_model = st.session_state.get("selected_short_rate_model")
