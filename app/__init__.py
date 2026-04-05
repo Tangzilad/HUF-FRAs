@@ -1,1 +1,5 @@
-"""App-layer helpers for UI controls and orchestration."""
+"""Streamlit app package for interactive analytics views."""
+
+from .app import main
+
+__all__ = ["main"]
