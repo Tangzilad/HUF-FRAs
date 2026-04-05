@@ -24,6 +24,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
+import streamlit as st
 
 
 sns.set_style("whitegrid")
@@ -356,6 +357,206 @@ def plot_results(bucket_df: pd.DataFrame, title: str, value_col: str = "pnl") ->
     plt.tight_layout()
 
 
+def _format_bp(value: float) -> str:
+    return f"{value * 10_000:,.1f} bp"
+
+
+def _streamlit_header() -> None:
+    st.title("HUF FRA Dynamics Learning Lab")
+    st.caption(
+        "Interactive scenario explorer for understanding how curve shifts propagate into FRA forwards, "
+        "PV, DV01, bucket risk, roll-down, and USD hedge overlays."
+    )
+    st.markdown(
+        """
+        ### How to use this page for learning
+        1. **Start with the curve chart** to see the shape of the shock itself.
+        2. **Move to bucket P&L and DV01** to see where risk concentrates by maturity.
+        3. **Inspect FRA-level table** to connect one bar on the chart to individual contracts (e.g., 1x3, 6x9).
+        4. **Check roll-down** to separate *time carry effects* from *macro shock effects*.
+        5. **Use hedge panel** to understand what USD ratio offsets the selected HUF risk objective.
+        """
+    )
+
+
+def _streamlit_controls() -> Tuple[SimulationConfig, Dict[str, object]]:
+    st.sidebar.header("Scenario Controls")
+
+    regime = st.sidebar.selectbox(
+        "Macro regime",
+        ["base", "tariff_liberation", "war_shock", "debt_crisis", "high_inflation"],
+        index=1,
+    )
+    payer = st.sidebar.radio("Position orientation", ["Payer (long rates)", "Receiver (short rates)"], index=0) == "Payer (long rates)"
+    hedge_target = st.sidebar.selectbox("Hedge target", ["dv01", "pnl"], index=0)
+    parallel_bp = st.sidebar.slider("Parallel shock (bp)", min_value=-200, max_value=200, value=0, step=5)
+    steepening = st.sidebar.checkbox("Apply extra steepening tilt", value=False)
+    flattening = st.sidebar.checkbox("Apply extra flattening tilt", value=False)
+    roll_months = st.sidebar.slider("Roll-down horizon (months)", min_value=1, max_value=6, value=1)
+
+    st.sidebar.markdown("### Book and curve assumptions")
+    notional_huf = st.sidebar.number_input("HUF notional", min_value=1_000_000.0, value=100_000_000.0, step=5_000_000.0, format="%.0f")
+    notional_usd = st.sidebar.number_input("USD notional", min_value=10_000.0, value=1_000_000.0, step=50_000.0, format="%.0f")
+    huf_1m = st.sidebar.slider("HUF 1M zero (%)", min_value=0.0, max_value=20.0, value=6.5, step=0.1) / 100.0
+    huf_12m = st.sidebar.slider("HUF 12M zero (%)", min_value=0.0, max_value=20.0, value=6.0, step=0.1) / 100.0
+    usd_1m = st.sidebar.slider("USD 1M zero (%)", min_value=0.0, max_value=15.0, value=5.0, step=0.1) / 100.0
+    usd_12m = st.sidebar.slider("USD 12M zero (%)", min_value=0.0, max_value=15.0, value=4.7, step=0.1) / 100.0
+    seed = int(st.sidebar.number_input("Random seed", min_value=0, max_value=10_000, value=42, step=1))
+
+    cfg = SimulationConfig(
+        notional_huf=notional_huf,
+        notional_usd=notional_usd,
+        seed=seed,
+        huf_level_1m=huf_1m,
+        huf_level_12m=huf_12m,
+        usd_level_1m=usd_1m,
+        usd_level_12m=usd_12m,
+        payer=payer,
+        hedge_target=hedge_target,
+        roll_down_months=roll_months,
+    )
+
+    opts: Dict[str, object] = {
+        "regime": regime,
+        "parallel_bp": float(parallel_bp),
+        "steepening": steepening,
+        "flattening": flattening,
+    }
+    return cfg, opts
+
+
+def _streamlit_curve_panel(results: Dict[str, pd.DataFrame], regime: str) -> None:
+    st.subheader("1) Curve Shock Visualization")
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4), sharex=True)
+    base_curve = results["base_curve"]
+    shocked_curve = results["shocked_curve"]
+
+    ax[0].plot(base_curve["month"], base_curve["huf_zero"] * 10_000, label="HUF Base", lw=2)
+    ax[0].plot(shocked_curve["month"], shocked_curve["huf_zero"] * 10_000, label="HUF Shocked", lw=2)
+    ax[0].set_title("HUF zero curve")
+    ax[0].set_ylabel("Rate (bp)")
+    ax[0].set_xlabel("Month")
+    ax[0].legend()
+
+    ax[1].plot(base_curve["month"], base_curve["usd_zero"] * 10_000, label="USD Base", lw=2)
+    ax[1].plot(shocked_curve["month"], shocked_curve["usd_zero"] * 10_000, label="USD Shocked", lw=2)
+    ax[1].set_title("USD zero curve")
+    ax[1].set_xlabel("Month")
+    ax[1].legend()
+    fig.suptitle(f"Scenario: {regime}")
+    fig.tight_layout()
+    st.pyplot(fig)
+    plt.close(fig)
+
+    huf_shift = (shocked_curve["huf_zero"] - base_curve["huf_zero"]).mean()
+    usd_shift = (shocked_curve["usd_zero"] - base_curve["usd_zero"]).mean()
+    st.info(
+        f"Reading the chart: On average, HUF moved {_format_bp(huf_shift)} and USD moved {_format_bp(usd_shift)}. "
+        "A steeper separation at long months implies bigger sensitivity in longer-end FRA buckets."
+    )
+
+
+def _streamlit_bucket_panel(results: Dict[str, pd.DataFrame]) -> None:
+    st.subheader("2) Bucket P&L and DV01 Concentration")
+    col1, col2 = st.columns(2)
+    with col1:
+        fig_pnl = plt.figure(figsize=(6, 3.5))
+        sns.barplot(data=results["huf_bucket"], x="bucket", y="pnl", hue="bucket", legend=False, palette="viridis")
+        plt.title("HUF bucket P&L")
+        plt.xlabel("Tenor bucket")
+        plt.ylabel("P&L")
+        plt.tight_layout()
+        st.pyplot(fig_pnl)
+        plt.close(fig_pnl)
+
+    with col2:
+        fig_dv01 = plt.figure(figsize=(6, 3.5))
+        sns.barplot(data=results["huf_bucket"], x="bucket", y="bucket_dv01", hue="bucket", legend=False, palette="magma")
+        plt.title("HUF scenario DV01")
+        plt.xlabel("Tenor bucket")
+        plt.ylabel("DV01")
+        plt.tight_layout()
+        st.pyplot(fig_dv01)
+        plt.close(fig_dv01)
+
+    top_bucket = results["huf_bucket"].iloc[results["huf_bucket"]["pnl"].abs().idxmax()]
+    st.success(
+        f"Largest absolute HUF P&L bucket: **{top_bucket['bucket']}** with {top_bucket['pnl']:,.0f}. "
+        "This is usually where your scenario shock and book exposure align most strongly."
+    )
+
+
+def _streamlit_fra_table_panel(results: Dict[str, pd.DataFrame]) -> None:
+    st.subheader("3) FRA-level Drill-down")
+    ranked = results["huf_gran"].copy()
+    ranked["abs_pnl"] = ranked["pnl"].abs()
+    ranked = ranked.sort_values("abs_pnl", ascending=False)
+    st.dataframe(
+        ranked[["fra", "pnl", "huf_dv01_scn", "dv01_change", "bucket"]].head(20),
+        use_container_width=True,
+    )
+    st.markdown(
+        """
+        **How to interpret the table**
+        - `pnl`: scenario profit/loss versus base valuation.
+        - `huf_dv01_scn`: new first-order rate sensitivity after the shock.
+        - `dv01_change`: how convexity/discounting changed sensitivity versus base.
+        - `bucket`: maturity grouping used in the charts above.
+        """
+    )
+
+
+def _streamlit_hedge_roll_panel(results: Dict[str, pd.DataFrame], roll_months: int) -> None:
+    st.subheader("4) Hedge Overlay and Roll-down Learning View")
+    hedge = results["hedge"].iloc[0]
+    c1, c2, c3 = st.columns(3)
+    c1.metric("USD hedge ratio", f"{hedge['hedge_ratio_usd']:.3f}x")
+    c2.metric("Net DV01 after hedge", f"{hedge['net_dv01_after_hedge']:,.0f}")
+    c3.metric("Net P&L after hedge", f"{hedge['net_pnl_after_hedge']:,.0f}")
+
+    st.markdown(
+        f"""
+        The hedge ratio tells you how much USD FRA risk (relative to the configured USD book) offsets the selected HUF objective.
+        A **negative ratio** means hedge in the opposite direction of the existing USD exposure.
+        """
+    )
+
+    fig_roll = plt.figure(figsize=(7, 3.5))
+    sns.barplot(data=results["roll_bucket"], x="bucket", y="pnl", hue="bucket", legend=False, palette="crest")
+    plt.title(f"HUF roll-down P&L over {roll_months}M (no shock)")
+    plt.xlabel("Tenor bucket")
+    plt.ylabel("Roll-down P&L")
+    plt.tight_layout()
+    st.pyplot(fig_roll)
+    plt.close(fig_roll)
+    st.warning(
+        "Roll-down isolates the passage-of-time effect. Compare this to scenario P&L to distinguish carry from macro repricing."
+    )
+
+
+def streamlit_app() -> None:
+    _streamlit_header()
+    cfg, opts = _streamlit_controls()
+    regime = str(opts["regime"])
+    parallel_bp = float(opts["parallel_bp"])
+    steepening = bool(opts["steepening"])
+    flattening = bool(opts["flattening"])
+
+    results = run_scenario(
+        regime=regime,
+        config=cfg,
+        payer=cfg.payer,
+        steepening=steepening,
+        flattening=flattening,
+        parallel_bp=parallel_bp,
+    )
+
+    _streamlit_curve_panel(results, regime)
+    _streamlit_bucket_panel(results)
+    _streamlit_fra_table_panel(results)
+    _streamlit_hedge_roll_panel(results, cfg.roll_down_months)
+
+
 def run_scenario(
     regime: str,
     config: SimulationConfig = DEFAULT_CONFIG,
@@ -442,5 +643,16 @@ def demo() -> None:
     plt.show()
 
 
+def _is_streamlit_runtime() -> bool:
+    runtime = getattr(st, "runtime", None)
+    if runtime is None:
+        return False
+    exists = getattr(runtime, "exists", None)
+    return bool(exists()) if callable(exists) else False
+
+
 if __name__ == "__main__":
-    demo()
+    if _is_streamlit_runtime():
+        streamlit_app()
+    else:
+        demo()
