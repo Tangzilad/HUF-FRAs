@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.widgets import render_sidebar_controls
+from app.widgets import PAGES, render_sidebar_controls
+
+
+EXPECTED_PAGES = ["Start here", "CIP basis", "Cross-currency", "Short-rate FRA", "Risk P&L", "Stress Lab"]
+
+
+def test_navigation_page_list_exact_and_ordered() -> None:
+    assert PAGES == EXPECTED_PAGES
 
 
 def test_render_sidebar_controls_normalizes_outputs() -> None:
@@ -53,3 +60,8 @@ def test_render_sidebar_controls_warns_and_falls_back_for_bad_upload() -> None:
     assert controls.hedge_instruments == ["FRA"]
     assert any("missing required fields" in w.lower() for w in controls.warnings)
     assert any("reverted to synthetic" in w.lower() for w in controls.warnings)
+
+
+def test_render_sidebar_controls_defaults_to_start_here() -> None:
+    controls = render_sidebar_controls(defaults={})
+    assert controls.active_page == "Start here"

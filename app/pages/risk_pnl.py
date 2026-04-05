@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from app.calculation_windows import render_equation_window
 from src.models.short_rate.fra import convexity_adjustment_summary
 from src.risk.backtesting import scenario_plausibility_check
 from src.risk.factor_models import PCAPreprocessConfig, pca_decompose, prepare_pca_inputs
@@ -22,19 +23,50 @@ TENOR_TO_POINTS = {
 }
 
 
+def _control_value(controls: Any, key: str) -> Any:
+    if controls is None:
+        return None
+    if isinstance(controls, dict):
+        return controls.get(key)
+    return getattr(controls, key, None)
+
+
+def _default_curve() -> pd.DataFrame:
+    return pd.DataFrame(
+        {"t": [0.25, 0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0], "zero_rate": [0.062, 0.064, 0.066, 0.067, 0.068, 0.069, 0.07, 0.071, 0.072]}
+    )
+
+
 def _resolve_scenario(raw: Any) -> EMScenario:
     scenarios = {s.name: s for s in em_scenario_library()}
+    default = em_scenario_library()[0]
     if isinstance(raw, EMScenario):
         return raw
     if isinstance(raw, str) and raw in scenarios:
         return scenarios[raw]
-    return scenarios["capital_outflow_shock"]
+    return default
+
+
+def _resolve_selected_scenario(controls: Any) -> EMScenario:
+    control_scenario = _control_value(controls, "scenario")
+    if control_scenario is not None:
+        return _resolve_scenario(control_scenario)
+    return _resolve_scenario(st.session_state.get("selected_scenario"))
 
 
 def _resolve_model_name(model: Any) -> str:
     if model is None:
         return "none"
     return getattr(model, "__class__", type(model)).__name__
+
+
+def _resolve_selected_model(controls: Any) -> Any:
+    control_model = _control_value(controls, "model")
+    if control_model is None:
+        return st.session_state.get("selected_short_rate_model")
+    if isinstance(control_model, str) and control_model.lower() in {"static", "none"}:
+        return None
+    return st.session_state.get("selected_short_rate_model")
 
 
 def _sample_portfolio() -> list[Trade]:
@@ -69,6 +101,17 @@ def _resolve_portfolio(raw: Any) -> list[Trade]:
                 )
             )
     return out or _sample_portfolio()
+
+
+def _resolve_selected_portfolio() -> list[Trade]:
+    return _resolve_portfolio(st.session_state.get("risk_portfolio"))
+
+
+def _resolve_selected_curve() -> pd.DataFrame:
+    curve = st.session_state.get("short_rate_curve")
+    if isinstance(curve, pd.DataFrame) and not curve.empty:
+        return curve
+    return _default_curve()
 
 
 def _bucket_roll_down(curve: pd.DataFrame, horizon_years: float = 1 / 12) -> pd.DataFrame:
@@ -133,20 +176,18 @@ def _build_pca_diagnostics() -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
     return loadings, variance
 
 
-def main() -> None:
-    st.title("Risk P&L")
+def render(controls: dict[str, Any] | None = None) -> None:
+    controls = controls or {}
+    st.subheader("Risk P&L")
 
-    selected_scenario = _resolve_scenario(st.session_state.get("selected_scenario"))
-    selected_model = st.session_state.get("selected_short_rate_model")
+    selected_scenario = _resolve_selected_scenario(controls)
+    selected_model = _resolve_selected_model(controls)
     model_name = _resolve_model_name(selected_model)
 
     st.caption(f"Using scenario: `{selected_scenario.name}` and short-rate model: `{model_name}`.")
 
-    portfolio = _resolve_portfolio(st.session_state.get("risk_portfolio"))
-    curve = st.session_state.get(
-        "short_rate_curve",
-        pd.DataFrame({"t": [0.25, 0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0], "zero_rate": [0.062, 0.064, 0.066, 0.067, 0.068, 0.069, 0.07, 0.071, 0.072]}),
-    )
+    portfolio = _resolve_selected_portfolio()
+    curve = _resolve_selected_curve()
 
     model_adj = _model_bucket_adjustment(selected_model, curve)
     roll_down = _bucket_roll_down(curve)
@@ -190,6 +231,19 @@ def main() -> None:
     st.dataframe(tail["decomposition"], use_container_width=True)
     st.metric("Portfolio VaR 99%", f"{tail['portfolio_var']:,.2f}")
     st.metric("Portfolio ES 99%", f"{tail['portfolio_es']:,.2f}")
+    render_equation_window(
+        title="How P&L, VaR, and ES are calculated",
+        equations=[
+            r"PnL_{\mathrm{trade}} = PnL_{\mathrm{rate}} + PnL_{\mathrm{fx}} + PnL_{\mathrm{basis}} + Carry",
+            r"PnL_{\mathrm{portfolio}} = \sum_i PnL_{\mathrm{trade},i}",
+            r"VaR_{99\%} = -Q_{1\%}(PnL),\quad ES_{99\%} = -\mathbb{E}[PnL \mid PnL \le Q_{1\%}]",
+        ],
+        notes=[
+            f"Scenario = {selected_scenario.name}; portfolio trades = {len(enriched)}",
+            f"Portfolio VaR 99% = {tail['portfolio_var']:,.4f}; ES 99% = {tail['portfolio_es']:,.4f}",
+            "Trade-level sensitivities (DV01, FX delta, basis01, carry) feed each component above.",
+        ],
+    )
 
     st.subheader("Diagnostics")
     pca_loadings, pca_var = _build_pca_diagnostics()
@@ -224,7 +278,20 @@ def main() -> None:
     st.subheader("Download-ready tabular objects")
     st.write("The following tables are available in `st.session_state['risk_pnl_export_tables']` for export workflow:")
     st.json({name: list(df.columns) for name, df in export_tables.items()})
+    if hasattr(st, "download_button"):
+        for table_name in ["dv01_by_tenor", "pnl_by_instrument", "stress_ladder", "tail_decomposition"]:
+            table = export_tables[table_name]
+            st.download_button(
+                label=f"Download {table_name}.csv",
+                data=table.to_csv(index=False).encode("utf-8"),
+                file_name=f"{table_name}.csv",
+                mime="text/csv",
+            )
+
+
+def main() -> None:
+    render({})
 
 
 if __name__ == "__main__":
-    main()
+    render()

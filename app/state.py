@@ -14,7 +14,7 @@ STATE_KEY_PIPELINE_OUTPUTS = "pipeline_outputs"
 
 
 DEFAULT_STATE: dict[str, Any] = {
-    "active_page": "CIP basis",
+    "active_page": "Start here",
     "tenor_years": 1.0,
     "spot": 365.0,
     "forward_points": 2.5,

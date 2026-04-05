@@ -33,6 +33,34 @@ from src.risk.portfolio_shocks import Trade, decompose_pnl, propagate_scenario
 from src.risk.scenarios.em_scenarios import em_scenario_library
 
 
+# ---------- UI helper utilities ----------
+
+def format_bp(value_bp: float) -> str:
+    return f"{value_bp:+.2f} bp"
+
+
+def validate_positive(name: str, value: float) -> None:
+    if value <= 0:
+        raise ValueError(f"{name} must be positive.")
+
+
+def to_panel_dataframe(
+    *,
+    spot: float,
+    forward: float,
+    domestic_ois: float,
+    foreign_ois: float,
+    tenor_years: Iterable[float],
+) -> tuple[pd.Series, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    tenors = [float(t) for t in tenor_years]
+    index = pd.DatetimeIndex([pd.Timestamp.utcnow().normalize()])
+    spot_series = pd.Series([float(spot)], index=index)
+    forward_df = pd.DataFrame({t: [float(forward)] for t in tenors}, index=index)
+    domestic_df = pd.DataFrame({t: [float(domestic_ois)] for t in tenors}, index=index)
+    foreign_df = pd.DataFrame({t: [float(foreign_ois)] for t in tenors}, index=index)
+    return spot_series, forward_df, domestic_df, foreign_df
+
+
 # ---------- Pipeline engines ----------
 
 def build_curve_table(payload: Dict[str, Any]) -> pd.DataFrame:

@@ -18,12 +18,16 @@ Launch the Streamlit interface from the repository root:
 streamlit run app/app.py
 ```
 
-Expected pages and primary user inputs:
+Expected routed pages (exact order) and primary user inputs:
 
-- **Curve calibration page**: upload/load market term-structure inputs (spot/forward tenors, yields, optional weighting) and run parametric fitting diagnostics.
-- **Cross-currency & CIP page**: provide domestic/foreign rates plus FX spot-forward inputs to inspect implied basis and CIP premium decomposition.
-- **Short-rate FRA page**: provide FRA contract terms, calibration targets, and model parameters to run Ho-Lee/Hull-White pricing and fit checks.
-- **Risk & stress page**: provide portfolio exposures, scenario shocks, and hedge constraints to run propagation, optimisation, and tail-risk summaries.
+1. **Start here**: concise onboarding flow for traders, including recommended page order and interpretation guidance.
+2. **CIP basis** *(parity)*: fast parity check using spot, forward points, tenor, and domestic/foreign OIS assumptions.
+3. **Cross-currency** *(basis)*: residual-basis diagnostics to assess funding/basis dislocations and quote consistency.
+4. **Short-rate FRA** *(model)*: FRA valuation and convexity analysis under static, Ho-Lee, and Hull-White model settings.
+5. **Risk P&L** *(portfolio)*: scenario-propagated P&L decomposition, DV01 bucketing, and tail-risk views.
+6. **Stress Lab** *(hedge)*: custom scenario shocks and hedge-optimization what-if analysis.
+
+> Learning flow: `parity -> basis -> model -> portfolio -> hedge`.
 
 > Rationale: Streamlit is used to consolidate previously notebook-scattered workflows into one cohesive interface while keeping domain logic modular in `src/*`.
 

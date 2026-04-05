@@ -47,6 +47,13 @@ INSTRUMENTS = [
 TENOR_BUCKETS = ["front", "belly", "back", "front", "belly", "back"]
 
 
+def _is_learning_session() -> bool:
+    import streamlit as st
+
+    mode = st.session_state.get("explanation_mode", "basic")
+    return str(mode).lower() == "learning"
+
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -139,27 +146,30 @@ def _compute_hedge_effectiveness(exposure_vector: np.ndarray, hedge_solution: np
     }
 
 
-def render() -> None:
+def render(controls: Dict[str, Any] | None = None) -> None:
     import streamlit as st
 
-    st.set_page_config(page_title="Stress Lab", layout="wide")
-    st.title("Stress Lab")
+    st.subheader("Stress Lab")
     st.caption("Scenario stress + custom shocks + hedge what-if optimization")
 
     scenarios = _merge_scenarios()
     scenario_names = sorted(scenarios.keys())
+    default_scenario_index = 0
+    requested_scenario = controls.get("default_scenario")
+    if isinstance(requested_scenario, str) and requested_scenario in scenario_names:
+        default_scenario_index = scenario_names.index(requested_scenario)
 
     left, right = st.columns([1, 1])
 
     with left:
-        selected_name = st.selectbox("Scenario template", scenario_names)
+        selected_name = st.selectbox("Scenario template", scenario_names, index=default_scenario_index)
         base_scenario = scenarios[selected_name]
         st.write(base_scenario["description"])
 
         st.subheader("Custom shock builder")
-        parallel_bp = st.slider("Parallel rates shift (bp)", min_value=-300, max_value=300, value=0, step=5)
-        slope_bp = st.slider("Curve slope change (bp): +front / -back", min_value=-200, max_value=200, value=0, step=5)
-        basis_widen_bp = st.slider("Basis widening (bp)", min_value=-200, max_value=300, value=0, step=5)
+        parallel_bp = st.slider("Parallel rates shift (bp)", min_value=-300, max_value=300, value=int(controls.get("parallel_bp", 0)), step=5)
+        slope_bp = st.slider("Curve slope change (bp): +front / -back", min_value=-200, max_value=200, value=int(controls.get("slope_bp", 0)), step=5)
+        basis_widen_bp = st.slider("Basis widening (bp)", min_value=-200, max_value=300, value=int(controls.get("basis_widen_bp", 0)), step=5)
 
         shocked = _customized_scenario(base_scenario, parallel_bp, slope_bp, basis_widen_bp)
 
@@ -168,11 +178,11 @@ def render() -> None:
 
     with right:
         st.subheader("Hedge optimization what-if")
-        max_notional = st.number_input("Max notional", min_value=0.5, max_value=20.0, value=5.0, step=0.5)
-        max_concentration = st.slider("Max tenor concentration", min_value=0.25, max_value=1.0, value=0.65, step=0.05)
-        tx_cost = st.number_input("Transaction cost per unit", min_value=0.0, max_value=1.0, value=0.01, step=0.01)
-        carry_penalty = st.slider("Carry penalty", min_value=0.0, max_value=1.0, value=0.25, step=0.05)
-        liquidity_penalty = st.slider("Liquidity penalty", min_value=0.0, max_value=1.0, value=0.10, step=0.05)
+        max_notional = st.number_input("Max notional", min_value=0.5, max_value=20.0, value=float(controls.get("max_notional", 5.0)), step=0.5)
+        max_concentration = st.slider("Max tenor concentration", min_value=0.25, max_value=1.0, value=float(controls.get("max_tenor_concentration", 0.65)), step=0.05)
+        tx_cost = st.number_input("Transaction cost per unit", min_value=0.0, max_value=1.0, value=float(controls.get("transaction_cost_per_unit", 0.01)), step=0.01)
+        carry_penalty = st.slider("Carry penalty", min_value=0.0, max_value=1.0, value=float(controls.get("carry_penalty", 0.25)), step=0.05)
+        liquidity_penalty = st.slider("Liquidity penalty", min_value=0.0, max_value=1.0, value=float(controls.get("liquidity_penalty", 0.10)), step=0.05)
 
         config = OptimizerConfig(
             max_notional=float(max_notional),
@@ -198,14 +208,8 @@ def render() -> None:
         effectiveness = _compute_hedge_effectiveness(scenario_exposure, hedge_solution)
 
     st.divider()
-    st.subheader("Stressed valuation vs base")
-
     stressed = _stressed_valuation(BASE_VALUATION, shocked)
     base_total = sum(BASE_VALUATION.values())
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Base total (USD mm)", f"{base_total:,.2f}")
-    col2.metric("Stressed total (USD mm)", f"{stressed['total_usd_mm']:,.2f}", delta=f"{stressed['delta_vs_base_usd_mm']:,.2f}")
-    col3.metric("Hedge effectiveness", f"{100.0 * effectiveness['hedge_effectiveness']:.1f}%")
 
     valuation_df = pd.DataFrame(
         {
@@ -215,15 +219,40 @@ def render() -> None:
         }
     )
     valuation_df["delta_usd_mm"] = valuation_df["stressed_usd_mm"] - valuation_df["base_usd_mm"]
+
+    st.subheader("1) Base vs stressed valuation table/metrics")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Base total (USD mm)", f"{base_total:,.2f}")
+    col2.metric("Stressed total (USD mm)", f"{stressed['total_usd_mm']:,.2f}", delta=f"{stressed['delta_vs_base_usd_mm']:,.2f}")
+    col3.metric("Total delta vs base (USD mm)", f"{stressed['delta_vs_base_usd_mm']:,.2f}")
     st.dataframe(valuation_df, use_container_width=True)
 
-    st.subheader("Hedge solution and risk delta")
+    st.subheader("2) Hedge solution table")
+    st.dataframe(solution_df, use_container_width=True)
+
+    st.subheader("3) Hedge effectiveness metrics")
     stat_cols = st.columns(3)
     stat_cols[0].metric("Unhedged risk", f"{effectiveness['unhedged_risk']:.4f}")
     stat_cols[1].metric("Hedged risk", f"{effectiveness['hedged_risk']:.4f}")
     stat_cols[2].metric("Optimization objective", f"{optimization['total_objective']:.4f}")
+    st.metric("Hedge effectiveness", f"{100.0 * effectiveness['hedge_effectiveness']:.1f}%")
 
-    st.dataframe(solution_df, use_container_width=True)
+    if controls.get("show_downloads", True) and hasattr(st, "download_button"):
+        dl_col1, dl_col2 = st.columns(2)
+        with dl_col1:
+            st.download_button(
+                "Download valuation table (CSV)",
+                data=valuation_df.to_csv(index=False).encode("utf-8"),
+                file_name="stress_lab_valuation.csv",
+                mime="text/csv",
+            )
+        with dl_col2:
+            st.download_button(
+                "Download hedge solution (CSV)",
+                data=solution_df.to_csv(index=False).encode("utf-8"),
+                file_name="stress_lab_hedge_solution.csv",
+                mime="text/csv",
+            )
 
 
 if __name__ == "__main__":
