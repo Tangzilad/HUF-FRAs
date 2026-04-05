@@ -11,6 +11,7 @@ import streamlit as st
 
 from src.risk.portfolio_shocks import Trade, decompose_pnl, propagate_scenario
 from src.risk.scenarios.em_scenarios import EMScenario, em_scenario_library
+from src.explainers.simulation_narrative import ScenarioContext, SimulationNarrativeGenerator
 
 
 REQUIRED_PORTFOLIO_COLUMNS = [
@@ -305,7 +306,9 @@ def main() -> None:
     pnl_decomposition = pd.read_json(BytesIO(cached_results["pnl_decomposition"].encode("utf-8")), orient="records")
     risk_table = pd.read_json(BytesIO(cached_results["risk_table"].encode("utf-8")), orient="records")
 
-    tab_risk, tab_pnl, tab_scenario = st.tabs(["Risk tables", "P&L decomposition", "Scenario results"])
+    tab_risk, tab_pnl, tab_scenario, tab_explain = st.tabs(
+        ["Risk tables", "P&L decomposition", "Scenario results", "Explanation"]
+    )
 
     with tab_risk:
         if learning_mode:
@@ -333,6 +336,26 @@ def main() -> None:
             )
         st.dataframe(scenario_results, use_container_width=True)
         _render_downloads(scenario_results, "Scenario Results", "scenario_results")
+
+    with tab_explain:
+        scn_data = scenario_library.get(scenario_name, {})
+        ctx = ScenarioContext(
+            scenario_name=scenario_name,
+            scenario_description=scn_data.get("description", ""),
+            rates_bp=scn_data.get("rates_bp", {}),
+            fx_pct=scn_data.get("fx_pct", {}),
+            basis_bp=scn_data.get("basis_bp", {}),
+        )
+        decomp_for_explain = {
+            "instrument": risk_table,
+            "factor_bucket": pnl_decomposition,
+        }
+        narrative = SimulationNarrativeGenerator().explain_scenario(
+            trade_pnl=scenario_results,
+            decomposition=decomp_for_explain,
+            context=ctx,
+        )
+        st.markdown(narrative)
 
 
 if __name__ == "__main__":
