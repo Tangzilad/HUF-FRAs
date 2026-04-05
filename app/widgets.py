@@ -29,7 +29,7 @@ SCENARIO_PRELOAD_MAP = {
 }
 HEDGE_MAP = {"USD FRA": "FRA", "XCCY Basis Swap": "XCCY_BasisSwap"}
 EXPLANATION_MODE_MAP = {"Basic": "basic", "Learning": "learning"}
-PAGES = ["Start here", "CIP basis", "Cross-currency", "Short-rate FRA"]
+PAGES = ["Start here", "CIP basis", "Cross-currency", "Short-rate FRA", "Risk P&L", "Stress Lab"]
 
 
 @dataclass

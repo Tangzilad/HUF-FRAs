@@ -23,24 +23,50 @@ TENOR_TO_POINTS = {
 }
 
 
-def _is_learning_session() -> bool:
-    mode = st.session_state.get("explanation_mode", "basic")
-    return str(mode).lower() == "learning"
+def _control_value(controls: Any, key: str) -> Any:
+    if controls is None:
+        return None
+    if isinstance(controls, dict):
+        return controls.get(key)
+    return getattr(controls, key, None)
+
+
+def _default_curve() -> pd.DataFrame:
+    return pd.DataFrame(
+        {"t": [0.25, 0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0], "zero_rate": [0.062, 0.064, 0.066, 0.067, 0.068, 0.069, 0.07, 0.071, 0.072]}
+    )
 
 
 def _resolve_scenario(raw: Any) -> EMScenario:
     scenarios = {s.name: s for s in em_scenario_library()}
+    default = em_scenario_library()[0]
     if isinstance(raw, EMScenario):
         return raw
     if isinstance(raw, str) and raw in scenarios:
         return scenarios[raw]
-    return scenarios["capital_outflow_shock"]
+    return default
+
+
+def _resolve_selected_scenario(controls: Any) -> EMScenario:
+    control_scenario = _control_value(controls, "scenario")
+    if control_scenario is not None:
+        return _resolve_scenario(control_scenario)
+    return _resolve_scenario(st.session_state.get("selected_scenario"))
 
 
 def _resolve_model_name(model: Any) -> str:
     if model is None:
         return "none"
     return getattr(model, "__class__", type(model)).__name__
+
+
+def _resolve_selected_model(controls: Any) -> Any:
+    control_model = _control_value(controls, "model")
+    if control_model is None:
+        return st.session_state.get("selected_short_rate_model")
+    if isinstance(control_model, str) and control_model.lower() in {"static", "none"}:
+        return None
+    return st.session_state.get("selected_short_rate_model")
 
 
 def _sample_portfolio() -> list[Trade]:
@@ -75,6 +101,17 @@ def _resolve_portfolio(raw: Any) -> list[Trade]:
                 )
             )
     return out or _sample_portfolio()
+
+
+def _resolve_selected_portfolio() -> list[Trade]:
+    return _resolve_portfolio(st.session_state.get("risk_portfolio"))
+
+
+def _resolve_selected_curve() -> pd.DataFrame:
+    curve = st.session_state.get("short_rate_curve")
+    if isinstance(curve, pd.DataFrame) and not curve.empty:
+        return curve
+    return _default_curve()
 
 
 def _bucket_roll_down(curve: pd.DataFrame, horizon_years: float = 1 / 12) -> pd.DataFrame:
@@ -140,29 +177,16 @@ def _build_pca_diagnostics() -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
 
 
 def main() -> None:
-    st.title("Risk P&L")
-    learning = _is_learning_session()
-    st.caption("Role on path: portfolio consequence view — what this scenario does to the book.")
+    st.subheader("Risk P&L")
 
-    if learning:
-        with st.expander("How to read this page", expanded=False):
-            st.markdown(
-                "Translate upstream diagnostics into **book impact** here: inspect instrument and factor "
-                "decomposition, then scale stress severity with the ladder. After identifying the vulnerable "
-                "risk blocks, move to **Stress Lab** to choose targeted stress designs and hedge actions."
-            )
-
-    selected_scenario = _resolve_scenario(st.session_state.get("selected_scenario"))
-    selected_model = st.session_state.get("selected_short_rate_model")
+    selected_scenario = _resolve_selected_scenario(controls)
+    selected_model = _resolve_selected_model(controls)
     model_name = _resolve_model_name(selected_model)
 
     st.caption(f"Using scenario: `{selected_scenario.name}` and short-rate model: `{model_name}`.")
 
-    portfolio = _resolve_portfolio(st.session_state.get("risk_portfolio"))
-    curve = st.session_state.get(
-        "short_rate_curve",
-        pd.DataFrame({"t": [0.25, 0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0], "zero_rate": [0.062, 0.064, 0.066, 0.067, 0.068, 0.069, 0.07, 0.071, 0.072]}),
-    )
+    portfolio = _resolve_selected_portfolio()
+    curve = _resolve_selected_curve()
 
     model_adj = _model_bucket_adjustment(selected_model, curve)
     roll_down = _bucket_roll_down(curve)
@@ -253,7 +277,15 @@ def main() -> None:
     st.subheader("Download-ready tabular objects")
     st.write("The following tables are available in `st.session_state['risk_pnl_export_tables']` for export workflow:")
     st.json({name: list(df.columns) for name, df in export_tables.items()})
+    for table_name in ["dv01_by_tenor", "pnl_by_instrument", "stress_ladder", "tail_decomposition"]:
+        table = export_tables[table_name]
+        st.download_button(
+            label=f"Download {table_name}.csv",
+            data=table.to_csv(index=False).encode("utf-8"),
+            file_name=f"{table_name}.csv",
+            mime="text/csv",
+        )
 
 
 if __name__ == "__main__":
-    main()
+    render()

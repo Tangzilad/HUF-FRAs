@@ -21,7 +21,7 @@ def _is_learning(controls: Any) -> bool:
 def render(controls: dict[str, float | str | bool]) -> None:
     """Render CIP basis panel using analytics from ``src.analytics``."""
 
-    st.subheader("Covered Interest Parity (CIP) basis")
+    st.subheader("CIP basis")
     learning = _is_learning(controls)
     st.caption("Role on path: parity / no-arbitrage entry check before basis decomposition.")
 

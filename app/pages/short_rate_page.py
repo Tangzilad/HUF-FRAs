@@ -23,7 +23,7 @@ def _is_learning(controls: Any) -> bool:
 def render(controls: dict[str, float | str | bool]) -> None:
     """Render FRA convexity adjustment summary from short-rate analytics."""
 
-    st.subheader("Short-rate FRA convexity")
+    st.subheader("Short-rate FRA")
     learning = _is_learning(controls)
     st.caption("Role on path: model / convexity interpretation for FRA-vs-futures valuation.")
 
