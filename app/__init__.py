@@ -1,5 +1,5 @@
-"""Lightweight app package for deterministic workflow orchestration."""
+"""Streamlit app package for interactive analytics views."""
 
-from .app import boot
+from .app import main
 
-__all__ = ["boot"]
+__all__ = ["main"]
