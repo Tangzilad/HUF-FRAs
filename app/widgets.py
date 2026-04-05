@@ -106,18 +106,66 @@ def render_sidebar_controls(defaults: Mapping[str, Any] | None = None, uploaded_
 
     if st is not None and not defaults:
         with st.sidebar:
-            active_page = st.radio("Page", options=PAGES, index=0)
-            valuation_date = st.date_input("Valuation date", value=date.today())
-            curve_source_display = st.radio("Curve source", options=["Synthetic", "Upload"], index=0)
-            fra_labels = st.multiselect("FRA tenors", options=FRA_CHOICES, default=["3x6"])
-            notional = float(st.number_input("Notional", min_value=0.0, value=1_000_000.0, step=100_000.0))
-            direction_display = st.radio("Direction", options=["Payer", "Receiver"], index=0)
-            day_count_display = st.selectbox("Day-count", options=list(DAY_COUNT_MAP), index=0)
-            comp_display = st.selectbox("Compounding", options=list(COMPOUNDING_MAP), index=0)
-            model_display = st.selectbox("Model", options=list(MODEL_MAP), index=0)
-            scenario_display = st.selectbox("Shock / scenario", options=list(SCENARIO_PRELOAD_MAP), index=0)
-            hedge_display = st.multiselect("Hedge instruments", options=list(HEDGE_MAP), default=["USD FRA"])
-            explain_display = st.radio("Explanation mode", options=list(EXPLANATION_MODE_MAP), index=0)
+            active_page = st.radio("Page", options=PAGES, index=0, help="Choose an analytics module to explore.")
+
+            st.markdown("---")
+            st.markdown("#### Market Settings")
+            valuation_date = st.date_input(
+                "Valuation date", value=date.today(),
+                help="As-of date for all curve snapshots and pricing.",
+            )
+            curve_source_display = st.radio(
+                "Curve source", options=["Synthetic", "Upload"], index=0,
+                help="**Synthetic**: auto-generated sample data for learning. **Upload**: bring your own CSV.",
+            )
+
+            st.markdown("---")
+            st.markdown("#### FRA Contract")
+            fra_labels = st.multiselect(
+                "FRA tenors", options=FRA_CHOICES, default=["3x6"],
+                help="Select one or more FRA tenors (e.g. 3x6 = 3-month start, 6-month end). The first number is months until the FRA starts; the second is months until it matures.",
+            )
+            notional = float(st.number_input(
+                "Notional (HUF)", min_value=0.0, value=1_000_000.0, step=100_000.0,
+                help="Face value of the FRA contract in HUF.",
+            ))
+            direction_display = st.radio(
+                "Direction", options=["Payer", "Receiver"], index=0,
+                help="**Payer**: you pay fixed, profit when rates rise. **Receiver**: you receive fixed, profit when rates fall.",
+            )
+
+            st.markdown("---")
+            st.markdown("#### Conventions & Model")
+            day_count_display = st.selectbox(
+                "Day-count", options=list(DAY_COUNT_MAP), index=0,
+                help="Day-count convention for accrual calculation. ACT/360 is standard for HUF money markets.",
+            )
+            comp_display = st.selectbox(
+                "Compounding", options=list(COMPOUNDING_MAP), index=0,
+                help="How interest accrues. **Simple**: no compounding (typical for short tenors). **Annual/Continuous**: used for longer instruments.",
+            )
+            model_display = st.selectbox(
+                "Model", options=list(MODEL_MAP), index=0,
+                help="**Static**: uses the current yield curve directly. **Ho-Lee / Hull-White**: stochastic short-rate models that simulate rate paths for richer pricing and convexity analysis.",
+            )
+
+            st.markdown("---")
+            st.markdown("#### Risk & Hedging")
+            scenario_display = st.selectbox(
+                "Shock / scenario", options=list(SCENARIO_PRELOAD_MAP), index=0,
+                help="Pre-built or custom stress scenario applied to the portfolio. EM scenarios reflect historical emerging-market crises.",
+            )
+            hedge_display = st.multiselect(
+                "Hedge instruments", options=list(HEDGE_MAP), default=["USD FRA"],
+                help="Instruments available for hedge optimization. **USD FRA**: offsets rate risk. **XCCY Basis Swap**: offsets cross-currency basis risk.",
+            )
+
+            st.markdown("---")
+            st.markdown("#### Display")
+            explain_display = st.radio(
+                "Explanation mode", options=list(EXPLANATION_MODE_MAP), index=0,
+                help="**Basic**: concise output for experienced users. **Learning**: adds concept explainers, definitions, and 'why this matters' panels on each page.",
+            )
             custom_shocks_bp = {"front": 0.0, "belly": 0.0, "back": 0.0}
     else:
         active_page = str(defaults.get("active_page", "CIP basis"))

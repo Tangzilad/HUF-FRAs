@@ -203,8 +203,20 @@ def main() -> None:
     with st.sidebar:
         st.header("Scenario Controls")
         scenario_library = cached_scenario_map()
-        scenario_name = st.selectbox("Scenario", sorted(scenario_library.keys()))
-        include_overlay = st.toggle("Include hedge overlays", value=True)
+        scenario_name = st.selectbox(
+            "Scenario", sorted(scenario_library.keys()),
+            help="Select a pre-built EM stress scenario. Each scenario applies coordinated shocks to rates, FX, and basis.",
+        )
+        include_overlay = st.toggle(
+            "Include hedge overlays", value=True,
+            help="When enabled, hedge overlay trades are included in the P&L. Disable to see unhedged exposure.",
+        )
+
+        st.markdown("---")
+        learning_mode = st.toggle(
+            "Learning mode", value=False,
+            help="Show explanations, scenario narratives, and interpretive guidance alongside results.",
+        )
 
         refresh_requested = st.button("Clear cache / refresh", type="secondary")
         if refresh_requested:
@@ -213,8 +225,55 @@ def main() -> None:
             st.toast("All Streamlit caches cleared.")
             st.rerun()
 
+    # --- Learning: welcome panel ---
+    if learning_mode:
+        with st.expander("Welcome — How to use the Risk Workbench", expanded=False):
+            st.markdown(
+                "This workbench lets you stress-test a portfolio of HUF-denominated trades against "
+                "pre-built emerging market crisis scenarios.\n\n"
+                "**Workflow:**\n"
+                "1. **Portfolio** — Use the default sample portfolio or upload your own CSV\n"
+                "2. **Scenario** — Pick a stress scenario from the sidebar\n"
+                "3. **Results** — Review risk tables, P&L decomposition, and scenario-level detail\n"
+                "4. **Export** — Download any table as CSV or Excel\n\n"
+                "**Key columns in the portfolio:**\n"
+                "- `dv01`: P&L change per 1 bp rate move (interest rate sensitivity)\n"
+                "- `basis01`: P&L change per 1 bp basis move (cross-currency sensitivity)\n"
+                "- `fx_delta`: P&L change per unit FX move\n"
+                "- `carry`: daily carry/roll-down income\n"
+                "- `hedge_overlay`: whether the trade is a hedge position"
+            )
+
+    # --- Scenario description ---
+    if learning_mode and scenario_name in scenario_library:
+        scn = scenario_library[scenario_name]
+        st.info(
+            f"**Scenario: {scenario_name.replace('_', ' ').title()}** — "
+            f"{scn.get('description', 'No description available.')}",
+            icon="📋",
+        )
+        with st.expander("Scenario shock details", expanded=False):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown("**Rate shocks (bp)**")
+                for bucket, bp in scn.get("rates_bp", {}).items():
+                    st.markdown(f"- {bucket}: +{bp:.0f} bp")
+            with col2:
+                st.markdown("**FX shocks (%)**")
+                for factor, pct in scn.get("fx_pct", {}).items():
+                    st.markdown(f"- {factor}: +{pct:.1f}%")
+            with col3:
+                st.markdown("**Basis shocks (bp)**")
+                for bucket, bp in scn.get("basis_bp", {}).items():
+                    st.markdown(f"- {bucket}: +{bp:.0f} bp")
+
     st.subheader("Portfolio input")
-    uploaded = st.file_uploader("Upload portfolio CSV", type=["csv"])
+    if learning_mode:
+        st.caption(
+            "The table below shows your portfolio positions. Each row is a trade with its sensitivities. "
+            "You can upload your own CSV or edit the default sample."
+        )
+    uploaded = st.file_uploader("Upload portfolio CSV", type=["csv"], help="CSV must include columns: " + ", ".join(REQUIRED_PORTFOLIO_COLUMNS))
     if uploaded is not None:
         uploaded_bytes = uploaded.getvalue()
         portfolio = pd.read_csv(BytesIO(uploaded_bytes))
@@ -249,14 +308,29 @@ def main() -> None:
     tab_risk, tab_pnl, tab_scenario = st.tabs(["Risk tables", "P&L decomposition", "Scenario results"])
 
     with tab_risk:
+        if learning_mode:
+            st.markdown(
+                "**Risk tables** aggregate exposure by instrument type. Look for the largest absolute "
+                "values to identify your dominant risk concentrations."
+            )
         st.dataframe(risk_table, use_container_width=True)
         _render_downloads(risk_table, "Risk Table", "risk_table")
 
     with tab_pnl:
+        if learning_mode:
+            st.markdown(
+                "**P&L decomposition** breaks total scenario loss into components: rate moves, FX, "
+                "basis shifts, and carry. This tells you *why* the portfolio lost money, not just *how much*."
+            )
         st.dataframe(pnl_decomposition, use_container_width=True)
         _render_downloads(pnl_decomposition, "P&L Decomposition", "pnl_decomposition")
 
     with tab_scenario:
+        if learning_mode:
+            st.markdown(
+                "**Scenario results** show the full trade-by-trade impact. Compare hedged vs. "
+                "unhedged trades (toggle *Include hedge overlays* in the sidebar) to evaluate hedge effectiveness."
+            )
         st.dataframe(scenario_results, use_container_width=True)
         _render_downloads(scenario_results, "Scenario Results", "scenario_results")
 

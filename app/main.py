@@ -24,9 +24,13 @@ st.caption("Default path uses market loader utilities; uploaded/manual data can 
 
 with st.sidebar:
     st.header("Curve inputs")
-    uploaded_file = st.file_uploader("Upload curve CSV", type=["csv"])
+    uploaded_file = st.file_uploader(
+        "Upload curve CSV", type=["csv"],
+        help="CSV must contain columns: tenor (e.g. 1M, 3M) and rate (in percent). An optional date column is also supported.",
+    )
 
     st.subheader("Manual node entry")
+    st.caption("Edit the table below to enter custom curve points. Add or remove rows as needed.")
     default_nodes = pd.DataFrame(
         {
             "tenor": ["1M", "3M", "6M", "12M"],
@@ -39,6 +43,12 @@ with st.sidebar:
         num_rows="dynamic",
         use_container_width=True,
         key="manual_curve_editor",
+    )
+
+    st.markdown("---")
+    st.markdown(
+        "**Priority order:** Manual entry > Upload > Synthetic. "
+        "The highest-priority valid source is used automatically."
     )
 
 synthetic_result = None
