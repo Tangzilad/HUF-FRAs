@@ -1,27 +1,31 @@
-"""Thin app bootstrap wiring state init + shared compute pipeline."""
+"""Main Streamlit entrypoint for analytics UI."""
 
 from __future__ import annotations
 
-from typing import Any, Dict
+import streamlit as st
 
-from app.helpers import ensure_pipeline_outputs
-from app.pages import risk_page, valuation_page, xccy_page
-from app.state import init_state
+from app.pages import render_cip_page, render_cross_currency_page, render_short_rate_page
+from app.state import initialize_state
+from app.widgets import render_sidebar_controls
+
+ROUTES = {
+    "CIP basis": render_cip_page,
+    "Cross-currency": render_cross_currency_page,
+    "Short-rate FRA": render_short_rate_page,
+}
 
 
-def run_app(session_state: Dict[str, Any] | None = None) -> Dict[str, Any]:
-    """Entrypoint used by UI runtime (e.g., Streamlit) and tests.
+def main() -> None:
+    """Bootstrap app state and dispatch to the selected page renderer."""
 
-    `init_state()` is called once and page payloads consume pipeline outputs rather
-    than triggering local recomputation.
-    """
+    st.set_page_config(page_title="HUF FRA Analytics", page_icon="📈", layout="wide")
+    st.title("HUF FRA Analytics")
+    initialize_state()
+    controls = render_sidebar_controls()
 
-    state = session_state if session_state is not None else {}
-    init_state(state)
-    outputs = ensure_pipeline_outputs(state)
+    page = str(controls["active_page"])
+    ROUTES[page](controls)
 
-    return {
-        "valuation": valuation_page(outputs),
-        "risk": risk_page(outputs),
-        "xccy": xccy_page(outputs),
-    }
+
+if __name__ == "__main__":
+    main()

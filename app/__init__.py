@@ -1,5 +1,5 @@
-"""Application package for orchestrated FRA analytics workflow."""
+"""Streamlit app package for interactive analytics views."""
 
-from .app import run_app
+from .app import main
 
-__all__ = ["run_app"]
+__all__ = ["main"]
