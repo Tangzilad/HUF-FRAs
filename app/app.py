@@ -31,7 +31,14 @@ def main() -> None:
 
     import streamlit as st
 
-    from app.pages import render_cip_page, render_cross_currency_page, render_home_page, render_short_rate_page
+    from app.pages import (
+        render_cip_page,
+        render_cross_currency_page,
+        render_home_page,
+        render_risk_pnl_page,
+        render_short_rate_page,
+        render_stress_lab_page,
+    )
     from app.state import initialize_state
     from app.widgets import render_sidebar_controls
 
@@ -40,12 +47,16 @@ def main() -> None:
         "CIP basis": render_cip_page,
         "Cross-currency": render_cross_currency_page,
         "Short-rate FRA": render_short_rate_page,
+        "Risk P&L": render_risk_pnl_page,
+        "Stress Lab": render_stress_lab_page,
     }
 
     PAGE_DESCRIPTIONS = {
         "CIP basis": "Explore how covered interest parity links FX forwards to interest rate differentials, and detect funding stress through basis deviations.",
         "Cross-currency": "Inspect FX-implied basis residuals that reveal whether cross-currency curves are internally consistent with observed forwards.",
         "Short-rate FRA": "Price FRA contracts using stochastic short-rate models (Ho-Lee / Hull-White) and analyse convexity adjustments across volatility regimes.",
+        "Risk P&L": "Decompose scenario P&L by instrument and tenor bucket, then inspect VaR/ES and ladder sensitivity.",
+        "Stress Lab": "Build custom shocks and test hedge optimization constraints to compare unhedged versus hedged risk.",
     }
 
     st.set_page_config(page_title="HUF FRA Analytics", page_icon="📈", layout="wide")
