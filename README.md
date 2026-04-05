@@ -10,7 +10,24 @@ A compact toolkit for Hungarian forint (HUF) forward rate agreement analytics, c
 - [Theory notes](docs/theory_notes.md)
 - [CIP premium assumptions](docs/cip_premium_assumptions.md)
 
-## Notebooks
+## Application launch and navigation
+
+Launch the Streamlit interface from the repository root:
+
+```bash
+streamlit run app/app.py
+```
+
+Expected pages and primary user inputs:
+
+- **Curve calibration page**: upload/load market term-structure inputs (spot/forward tenors, yields, optional weighting) and run parametric fitting diagnostics.
+- **Cross-currency & CIP page**: provide domestic/foreign rates plus FX spot-forward inputs to inspect implied basis and CIP premium decomposition.
+- **Short-rate FRA page**: provide FRA contract terms, calibration targets, and model parameters to run Ho-Lee/Hull-White pricing and fit checks.
+- **Risk & stress page**: provide portfolio exposures, scenario shocks, and hedge constraints to run propagation, optimisation, and tail-risk summaries.
+
+> Rationale: Streamlit is used to consolidate previously notebook-scattered workflows into one cohesive interface while keeping domain logic modular in `src/*`.
+
+## Notebooks (reference and validation, not primary UI)
 - [HUF-USD end-to-end calibration](notebooks/huf_usd_end_to_end_calibration.ipynb)
 - [Short-rate FRA workflow](notebooks/short_rate_fra_workflow.ipynb)
 - [Simulation and convexity workflow](notebooks/simulation_and_convexity_workflow.ipynb)
