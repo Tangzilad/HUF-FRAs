@@ -1,6 +1,11 @@
 """CIP premium analytics module.
 
-This module provides three layers:
+Conventions are aligned with ``docs/cip_premium_assumptions.md``:
+- Spot/forward FX quotes are domestic currency per unit of foreign currency.
+- Covered-parity mapping uses simple annual compounding.
+- Rate inputs are decimal annualised yields (0.05 = 5%).
+
+The module provides three layers:
 1) Raw CIP deviation calculators.
 2) Purified CIP calculators using supranational proxy curves.
 3) Yield decomposition and term-premium analytics.

@@ -1,5 +1,21 @@
 # Project Guide and Roadmap
 
+## Module map
+
+- `src/data/loaders/`: Market data ingestion utilities and schema normalization helpers.
+- `src/curves/`: Parametric and cross-currency curve construction modules.
+- `src/analytics/`: Pricing analytics including CIP premium decomposition.
+- `src/models/short_rate/`: Short-rate model base types, calibration routines, and FRA simulation tools.
+- `src/risk/`: Scenario, factor, tail-risk, backtesting, and hedging optimization engines.
+- `src/visualization/`: Market diagnostic charting and reporting plots.
+- `src/explainers/`: Human-readable interpretation layer for calibration and risk outputs.
+
+### Explainer classes (`src/explainers/`)
+
+- `CurveFitExplainer`: Interprets calibration residuals, parameter shapes, and fit stability signals.
+- `RiskScenarioExplainer`: Converts shock outputs into concise PnL/risk-factor impact narratives.
+- `PolicyNarrativeExplainer`: Expresses model conclusions in macro-policy language for broad audiences.
+
 ## Milestones
 
 ### M1 — Data ingestion foundation
