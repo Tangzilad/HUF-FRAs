@@ -56,6 +56,8 @@ def main() -> None:
         "CIP basis": "Explore how covered interest parity links FX forwards to interest rate differentials, and detect funding stress through basis deviations.",
         "Cross-currency": "Inspect FX-implied basis residuals that reveal whether cross-currency curves are internally consistent with observed forwards.",
         "Short-rate FRA": "Price FRA contracts using stochastic short-rate models (Ho-Lee / Hull-White) and analyse convexity adjustments across volatility regimes.",
+        "Risk P&L": "Decompose scenario P&L by instrument and tenor bucket, then inspect VaR/ES and ladder sensitivity.",
+        "Stress Lab": "Build custom shocks and test hedge optimization constraints to compare unhedged versus hedged risk.",
     }
 
     st.set_page_config(page_title="HUF FRA Analytics", page_icon="📈", layout="wide")
