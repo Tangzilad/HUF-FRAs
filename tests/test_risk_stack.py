@@ -9,6 +9,7 @@ from src.risk.hedging_optimizer import OptimizerConfig, optimize_hedges
 from src.risk.portfolio_shocks import Trade, decompose_pnl, propagate_scenario
 from src.risk.scenarios.em_scenarios import em_scenario_library
 from src.risk.tail_risk import expected_shortfall, historical_var, marginal_component_var_es, parametric_var
+from src.explainers.risk import RiskExplainer
 
 
 def test_macro_mixed_frequency_pca_inputs_are_standardized() -> None:
@@ -88,3 +89,9 @@ def test_tail_risk_outputs_non_negative_values() -> None:
     pnl["total"] = pnl.sum(axis=1)
     out = marginal_component_var_es(pnl, total_col="total")
     assert "decomposition" in out
+
+
+def test_risk_explainer_contains_required_terms() -> None:
+    text = RiskExplainer().explain()
+    for term in ["VaR", "ES", "DV01", "basis", "convexity"]:
+        assert term in text
