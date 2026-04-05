@@ -176,7 +176,8 @@ def _build_pca_diagnostics() -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
     return loadings, variance
 
 
-def main() -> None:
+def render(controls: dict[str, Any] | None = None) -> None:
+    controls = controls or {}
     st.subheader("Risk P&L")
 
     selected_scenario = _resolve_selected_scenario(controls)
@@ -277,18 +278,19 @@ def main() -> None:
     st.subheader("Download-ready tabular objects")
     st.write("The following tables are available in `st.session_state['risk_pnl_export_tables']` for export workflow:")
     st.json({name: list(df.columns) for name, df in export_tables.items()})
-    for table_name in ["dv01_by_tenor", "pnl_by_instrument", "stress_ladder", "tail_decomposition"]:
-        table = export_tables[table_name]
-        st.download_button(
-            label=f"Download {table_name}.csv",
-            data=table.to_csv(index=False).encode("utf-8"),
-            file_name=f"{table_name}.csv",
-            mime="text/csv",
-        )
+    if hasattr(st, "download_button"):
+        for table_name in ["dv01_by_tenor", "pnl_by_instrument", "stress_ladder", "tail_decomposition"]:
+            table = export_tables[table_name]
+            st.download_button(
+                label=f"Download {table_name}.csv",
+                data=table.to_csv(index=False).encode("utf-8"),
+                file_name=f"{table_name}.csv",
+                mime="text/csv",
+            )
 
 
 def main() -> None:
-    render()
+    render({})
 
 
 if __name__ == "__main__":

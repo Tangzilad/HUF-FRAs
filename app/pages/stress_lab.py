@@ -237,7 +237,7 @@ def render(controls: Dict[str, Any] | None = None) -> None:
     stat_cols[2].metric("Optimization objective", f"{optimization['total_objective']:.4f}")
     st.metric("Hedge effectiveness", f"{100.0 * effectiveness['hedge_effectiveness']:.1f}%")
 
-    if controls.get("show_downloads", True):
+    if controls.get("show_downloads", True) and hasattr(st, "download_button"):
         dl_col1, dl_col2 = st.columns(2)
         with dl_col1:
             st.download_button(
