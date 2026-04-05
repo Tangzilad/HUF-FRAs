@@ -27,6 +27,56 @@ def run_app(state: dict[str, Any] | None = None) -> dict[str, Any]:
     return ensure_pipeline_outputs(data)
 
 
+def _render_home(controls: Any) -> None:
+    from app.pages import render_home_page
+
+    render_home_page(controls)
+
+
+def _render_cip(controls: Any) -> None:
+    from app.pages import render_cip_page
+
+    render_cip_page(controls)
+
+
+def _render_cross_currency(controls: Any) -> None:
+    from app.pages import render_cross_currency_page
+
+    render_cross_currency_page(controls)
+
+
+def _render_short_rate(controls: Any) -> None:
+    from app.pages import render_short_rate_page
+
+    render_short_rate_page(controls)
+
+
+def _render_risk_pnl(controls: Any) -> None:
+    from app.pages import render_risk_pnl_page
+
+    render_risk_pnl_page(controls)
+
+
+def _render_stress_lab(controls: Any) -> None:
+    from app.pages import render_stress_lab_page
+
+    render_stress_lab_page(controls)
+
+
+def build_routes() -> dict[str, Callable[[Any], None]]:
+    return {
+        "Start here": _render_home,
+        "CIP basis": _render_cip,
+        "Cross-currency": _render_cross_currency,
+        "Short-rate FRA": _render_short_rate,
+        "Risk P&L": _render_risk_pnl,
+        "Stress Lab": _render_stress_lab,
+    }
+
+
+PAGE_ROUTES = build_routes()
+
+
 def main() -> None:
     """Main Streamlit entrypoint for analytics UI."""
 

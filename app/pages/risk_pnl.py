@@ -287,5 +287,9 @@ def main() -> None:
         )
 
 
+def main() -> None:
+    render()
+
+
 if __name__ == "__main__":
     render()

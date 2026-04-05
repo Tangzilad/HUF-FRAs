@@ -167,9 +167,9 @@ def render(controls: Dict[str, Any] | None = None) -> None:
         st.write(base_scenario["description"])
 
         st.subheader("Custom shock builder")
-        parallel_bp = st.slider("Parallel rates shift (bp)", min_value=-300, max_value=300, value=0, step=5)
-        slope_bp = st.slider("Curve slope change (bp): +front / -back", min_value=-200, max_value=200, value=0, step=5)
-        basis_widen_bp = st.slider("Basis widening (bp)", min_value=-200, max_value=300, value=0, step=5)
+        parallel_bp = st.slider("Parallel rates shift (bp)", min_value=-300, max_value=300, value=int(controls.get("parallel_bp", 0)), step=5)
+        slope_bp = st.slider("Curve slope change (bp): +front / -back", min_value=-200, max_value=200, value=int(controls.get("slope_bp", 0)), step=5)
+        basis_widen_bp = st.slider("Basis widening (bp)", min_value=-200, max_value=300, value=int(controls.get("basis_widen_bp", 0)), step=5)
 
         shocked = _customized_scenario(base_scenario, parallel_bp, slope_bp, basis_widen_bp)
 
@@ -178,11 +178,11 @@ def render(controls: Dict[str, Any] | None = None) -> None:
 
     with right:
         st.subheader("Hedge optimization what-if")
-        max_notional = st.number_input("Max notional", min_value=0.5, max_value=20.0, value=5.0, step=0.5)
-        max_concentration = st.slider("Max tenor concentration", min_value=0.25, max_value=1.0, value=0.65, step=0.05)
-        tx_cost = st.number_input("Transaction cost per unit", min_value=0.0, max_value=1.0, value=0.01, step=0.01)
-        carry_penalty = st.slider("Carry penalty", min_value=0.0, max_value=1.0, value=0.25, step=0.05)
-        liquidity_penalty = st.slider("Liquidity penalty", min_value=0.0, max_value=1.0, value=0.10, step=0.05)
+        max_notional = st.number_input("Max notional", min_value=0.5, max_value=20.0, value=float(controls.get("max_notional", 5.0)), step=0.5)
+        max_concentration = st.slider("Max tenor concentration", min_value=0.25, max_value=1.0, value=float(controls.get("max_tenor_concentration", 0.65)), step=0.05)
+        tx_cost = st.number_input("Transaction cost per unit", min_value=0.0, max_value=1.0, value=float(controls.get("transaction_cost_per_unit", 0.01)), step=0.01)
+        carry_penalty = st.slider("Carry penalty", min_value=0.0, max_value=1.0, value=float(controls.get("carry_penalty", 0.25)), step=0.05)
+        liquidity_penalty = st.slider("Liquidity penalty", min_value=0.0, max_value=1.0, value=float(controls.get("liquidity_penalty", 0.10)), step=0.05)
 
         config = OptimizerConfig(
             max_notional=float(max_notional),
