@@ -176,8 +176,8 @@ def _build_pca_diagnostics() -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
     return loadings, variance
 
 
-def render(controls: Any | None = None) -> None:
-    st.title("Risk P&L")
+def main() -> None:
+    st.subheader("Risk P&L")
 
     selected_scenario = _resolve_selected_scenario(controls)
     selected_model = _resolve_selected_model(controls)
