@@ -42,3 +42,7 @@ class BaseExplainer(ABC):
             "## Trading implications\n" + self.explain_trading_implications().strip(),
         ]
         return "\n\n".join(sections).strip() + "\n"
+
+    def explain(self) -> str:
+        """Backward-compatible alias used by tests and scripts."""
+        return self.render_full_markdown()

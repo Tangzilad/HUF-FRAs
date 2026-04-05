@@ -3,7 +3,6 @@ import math
 import numpy as np
 
 from src.curves.cross_currency import (
-    CrossCurrencyCurveBundle,
     CurveInstrumentSet,
     CurveInterpolator,
     InterpolationConfig,
