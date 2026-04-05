@@ -1,16 +1,23 @@
 """
-HUF FRA scenario simulation for sell-side STIR desk.
+HUF FRA scenario simulation for sell-side STIR desk + structured learning workspace.
 
-This script builds synthetic HUF and USD money-market curves, prices FRAs up to 1Y,
-computes PV / DV01 / scenario P&L, models roll-down, and sizes a USD hedge to reduce
-residual risk.
+What this file now provides:
+1) Practical simulation:
+   - builds synthetic HUF and USD money-market curves
+   - prices FRAs up to 1Y
+   - computes PV / DV01 / scenario P&L
+   - models roll-down
+   - sizes a USD hedge ratio to reduce residual risk
+2) Theory bridge:
+   - compact but richer notes on FRA mathematics and curve/risk intuition
+3) Learning roadmap:
+   - additional project ideas for moving from intermediate to advanced FRA/rate theory
+   - executable Codex tasks so you can start directly from this repository
 
 Empirical shock defaults encoded in `DEFAULT_CONFIG`:
 - tariff_liberation: -50bp parallel move (flight-to-safety style)
 - war_shock: +50bp parallel move
 - debt_crisis: short-end +60bp, long-end +140bp (tilted stress)
-
-These defaults can be changed by editing `DEFAULT_CONFIG` or passing an override.
 """
 
 from __future__ import annotations
@@ -27,6 +34,107 @@ import seaborn as sns
 
 
 sns.set_style("whitegrid")
+
+
+THEORY_NOTES = """
+========================
+FRA RATE THEORY (ADVANCED)
+========================
+
+1. FRA valuation identity
+-------------------------
+Given discount factors P(0, t1), P(0, t2), year fraction tau = t2 - t1:
+    F(0; t1, t2) = (P(0,t1)/P(0,t2) - 1) / tau
+
+For notional N and strike K, a payer FRA PV (long rates) under simple compounding:
+    PV(0) = N * tau * (F - K) * P(0, t2)
+
+This script uses that convention, with sign flipped for receiver FRA.
+
+2. Why discount to t2 in this implementation
+--------------------------------------------
+The equivalent market convention often settles at t1 using:
+    payoff(t1) = N * tau * (F_fix - K) / (1 + tau * F_fix)
+Discounting this payoff from t1 back to t0 gives the same no-arbitrage price as
+discounting N * tau * (F - K) to t2 in a single-curve framework.
+
+3. Curve construction intuition
+-------------------------------
+This model starts from monthly synthetic zero rates and transforms to discount factors
+with continuous compounding:
+    P(0,t) = exp(-r(t) * t)
+Continuous compounding is chosen for numerical smoothness. Converting between simple
+and continuous conventions is part of model risk governance in production systems.
+
+4. Risk decomposition
+---------------------
+- DV01 here is finite-difference sensitivity to a 1bp parallel shift.
+- Bucket DV01 groups exposures by FRA end month to reveal tenor concentration.
+- P&L decomposition combines:
+  a) revaluation from shocks (level + slope changes),
+  b) roll-down (passage of time with unchanged market curve shape).
+
+5. Cross-currency hedge logic
+-----------------------------
+A USD hedge ratio is solved to offset either:
+- aggregate DV01, or
+- aggregate scenario P&L.
+This is intentionally stylized; in live books you would include basis, liquidity haircuts,
+cross-gamma effects, and execution constraints.
+"""
+
+
+PROJECT_ROADMAP = [
+    {
+        "name": "Multi-curve FRA engine (OIS discounting + IBOR projection)",
+        "objective": "Separate discount and forward curves to mirror post-crisis pricing.",
+        "deliverable": "Refactor pricing to accept projection curve and discount curve independently.",
+    },
+    {
+        "name": "Historical scenario library",
+        "objective": "Replace synthetic shocks with date-stamped historical stress windows.",
+        "deliverable": "CSV-based scenario loader + replay report by episode and regime.",
+    },
+    {
+        "name": "Key-rate DV01 / PCA risk",
+        "objective": "Move beyond parallel DV01 into key-rate and factor risk decomposition.",
+        "deliverable": "Tenor-key sensitivity matrix and PCA factor exposure dashboard.",
+    },
+    {
+        "name": "Convexity and futures-vs-FRA analytics",
+        "objective": "Understand FRA-futures convexity adjustment and hedge slippage.",
+        "deliverable": "Notebook/report quantifying convexity under volatility assumptions.",
+    },
+    {
+        "name": "Hedging optimizer under constraints",
+        "objective": "Optimize hedge basket with liquidity and notional bounds.",
+        "deliverable": "Constrained least-squares (or QP) hedge optimizer CLI.",
+    },
+]
+
+
+CODEX_STARTER_TASKS = [
+    {
+        "task": "Generate baseline outputs and sanity-check signs.",
+        "command": "python fra_simulation.py --mode demo",
+        "success_criteria": "Payer FRA P&L should generally rise in upward-rate shock scenario.",
+    },
+    {
+        "task": "Print detailed theory notes before coding changes.",
+        "command": "python fra_simulation.py --mode theory",
+        "success_criteria": "Theory section prints without errors and matches desk conventions.",
+    },
+    {
+        "task": "Create focused learning roadmap for next sprint.",
+        "command": "python fra_simulation.py --mode roadmap",
+        "success_criteria": "Roadmap shows at least five advanced project directions.",
+    },
+    {
+        "task": "Draft implementation backlog with execution checklist.",
+        "command": "python fra_simulation.py --mode tasks",
+        "success_criteria": "Each task has command + success criteria for Codex execution.",
+    },
+]
 
 
 @dataclass
@@ -442,5 +550,56 @@ def demo() -> None:
     plt.show()
 
 
+def print_theory_notes() -> None:
+    """Print consolidated theory notes for FRA valuation and risk management."""
+    print(THEORY_NOTES.strip())
+
+
+def print_learning_roadmap() -> None:
+    """Print additional advanced projects to deepen rate-theory and FRA trading practice."""
+    print("=== ADVANCED FRA LEARNING ROADMAP ===")
+    for idx, item in enumerate(PROJECT_ROADMAP, start=1):
+        print(f"\n{idx}. {item['name']}")
+        print(f"   Objective  : {item['objective']}")
+        print(f"   Deliverable: {item['deliverable']}")
+
+
+def print_codex_starter_tasks() -> None:
+    """Print executable tasks you can run in this repository immediately."""
+    print("=== CODEX STARTER TASKS ===")
+    for idx, item in enumerate(CODEX_STARTER_TASKS, start=1):
+        print(f"\n{idx}. {item['task']}")
+        print(f"   Run: {item['command']}")
+        print(f"   Done when: {item['success_criteria']}")
+
+
+def _parse_mode() -> str:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="HUF FRA simulator + theory/learning toolkit.")
+    parser.add_argument(
+        "--mode",
+        default="demo",
+        choices=["demo", "theory", "roadmap", "tasks", "all"],
+        help="Select output mode.",
+    )
+    args = parser.parse_args()
+    return str(args.mode)
+
+
 if __name__ == "__main__":
-    demo()
+    mode = _parse_mode()
+    if mode == "demo":
+        demo()
+    elif mode == "theory":
+        print_theory_notes()
+    elif mode == "roadmap":
+        print_learning_roadmap()
+    elif mode == "tasks":
+        print_codex_starter_tasks()
+    elif mode == "all":
+        print_theory_notes()
+        print()
+        print_learning_roadmap()
+        print()
+        print_codex_starter_tasks()
