@@ -21,8 +21,17 @@ def _is_learning(controls: Any) -> bool:
 def render(controls: dict[str, float | str | bool]) -> None:
     """Render one-tenor FX-implied basis diagnostics."""
 
-    st.subheader("Cross-currency diagnostics")
+    st.subheader("Cross-currency")
     learning = _is_learning(controls)
+    st.caption("Role on path: basis / structural consistency check after CIP.")
+
+    if learning:
+        with st.expander("How to read this page", expanded=False):
+            st.markdown(
+                "Use this page to test whether rates curves and FX forwards are structurally aligned once the "
+                "headline CIP gap is known. Treat the residual as a **consistency diagnostic**, then move to "
+                "**Short-rate FRA** to interpret valuation impact through model and convexity assumptions."
+            )
 
     if learning:
         with st.expander("What is cross-currency basis?", expanded=False):

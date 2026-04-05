@@ -16,7 +16,7 @@ This index links every core guide and source module so that navigation stays exp
 ```text
 Streamlit app shell (`app/app.py`)
   -> shared state and widgets (session state, controls, upload/select inputs)
-     -> page modules (start page, CIP basis, cross-currency diagnostics, FRA/short-rate valuation)
+     -> six routed page modules (start, parity, basis, model, portfolio, hedge)
         -> analytics engines in `src/*`
 ```
 
@@ -30,14 +30,22 @@ Cross-links from routed app pages to underlying modules:
 - **Cross-currency**
   - [`src/curves/cross_currency.py`](../src/curves/cross_currency.py)
   - [`src/explainers/cross_currency.py`](../src/explainers/cross_currency.py)
-- **Short-rate FRA page**
+- **Short-rate FRA (model)**
   - [`src/models/short_rate/calibration.py`](../src/models/short_rate/calibration.py)
   - [`src/models/short_rate/fra.py`](../src/models/short_rate/fra.py)
   - [`src/models/short_rate/ho_lee.py`](../src/models/short_rate/ho_lee.py)
   - [`src/models/short_rate/hull_white.py`](../src/models/short_rate/hull_white.py)
   - [`src/explainers/short_rate.py`](../src/explainers/short_rate.py)
+- **Risk P&L (portfolio)**
+  - [`app/pages/risk_pnl.py`](../app/pages/risk_pnl.py)
+  - [`src/risk/portfolio_shocks.py`](../src/risk/portfolio_shocks.py)
+  - [`src/risk/tail_risk.py`](../src/risk/tail_risk.py)
+- **Stress Lab (hedge)**
+  - [`app/pages/stress_lab.py`](../app/pages/stress_lab.py)
+  - [`src/risk/hedging_optimizer.py`](../src/risk/hedging_optimizer.py)
+  - [`src/risk/scenarios/em_scenarios.py`](../src/risk/scenarios/em_scenarios.py)
 
-> Note: `app/pages/risk_pnl.py` and `app/pages/stress_lab.py` exist but are not currently included in the routed navigation.
+> Learning flow across routed pages: `parity -> basis -> model -> portfolio -> hedge`.
 
 > Rationale note: Streamlit is used to unify previously notebook-scattered workflows into a single interface while preserving modular analytics code in `src/*`.
 
