@@ -17,7 +17,7 @@ def render(controls: dict[str, float | str | bool]) -> None:
 
     learning = _is_learning(controls)
 
-    st.subheader("HUF FRA Analytics — Start here")
+    st.subheader("Start here")
     st.write(
         "This desk-facing workbench helps you test consistency across HUF FRA, cross-currency basis, and short-rate "
         "interpretation so you can separate curve shape, funding dislocation, and model convexity from headline moves."

@@ -135,7 +135,7 @@ def _build_pca_diagnostics() -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
 
 
 def main() -> None:
-    st.title("Risk P&L")
+    st.subheader("Risk P&L")
 
     selected_scenario = _resolve_scenario(st.session_state.get("selected_scenario"))
     selected_model = st.session_state.get("selected_short_rate_model")

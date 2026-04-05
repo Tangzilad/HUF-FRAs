@@ -21,7 +21,7 @@ def _is_learning(controls: Any) -> bool:
 def render(controls: dict[str, float | str | bool]) -> None:
     """Render CIP basis panel using analytics from ``src.analytics``."""
 
-    st.subheader("Covered Interest Parity (CIP) basis")
+    st.subheader("CIP basis")
     learning = _is_learning(controls)
 
     if learning:
