@@ -19,43 +19,40 @@ def render(controls: dict[str, float | str | bool]) -> None:
 
     st.subheader("HUF FRA Analytics — Start here")
     st.write(
-        "This desk-facing workbench helps you test consistency across HUF FRA, cross-currency basis, and short-rate "
-        "interpretation so you can separate curve shape, funding dislocation, and model convexity from headline moves."
+        "Desk tool for linking parity checks, basis diagnostics, FRA valuation, portfolio risk attribution, and stress "
+        "testing so you can separate structure from noise."
     )
 
-    st.info("**Suggested path:** CIP basis → Cross-currency → Short-rate FRA", icon="🧭")
+    st.info(
+        "**Suggested path:** CIP basis -> Cross-currency -> Short-rate FRA -> Risk P&L -> Stress Lab",
+        icon="🧭",
+    )
 
     st.write(
-        "Work in sequence rather than jumping between pages. Start with **CIP basis** to check whether FX forwards "
-        "and rate differentials are coherent, then move to **Cross-currency** to inspect residual basis, and use "
-        "**Short-rate FRA** once market structure is clear and the task is pricing or convexity comparison."
+        "Run pages in order. **CIP basis** checks parity coherence, **Cross-currency** isolates funding dislocation, "
+        "**Short-rate FRA** prices and compares model sensitivity, **Risk P&L** maps exposures into explainable "
+        "carry/curve/vol buckets, and **Stress Lab** tests hedge robustness under shocks."
     )
     st.write(
-        "**CIP basis** is the fastest rich/cheap parity check. **Cross-currency** is the diagnostic view for funding, "
-        "basis, and quote consistency. **Short-rate FRA** is the valuation view for model choice, volatility "
-        "assumptions, and the forward/futures gap."
+        "Use synthetic scenarios first for intuition and sign checks. Move to uploads only after tenor mapping, quote "
+        "units, calendars, and day-count conventions are validated."
     )
     st.write(
-        "Use synthetic inputs first to understand mechanics, then switch to uploaded data only after tenor labels, "
-        "quote units, and conventions are clean. Change one driver at a time so each output move is interpretable."
+        "Interpretation guardrails: confirm sign before magnitude, require persistence before conviction, and treat "
+        "single-point anomalies as potential data or convention breaks until verified."
     )
     st.write(
-        "Read outputs by sign, magnitude, and persistence. Near-zero basis typically means inputs are broadly "
-        "coherent; persistent residuals are more likely to matter for funding, hedge design, or relative-value views."
-    )
-    st.write(
-        "Use **Learning** mode when forming a trade idea or reviewing an unfamiliar linkage; switch to **Basic** mode "
-        "for faster repeat checks once your question is clear."
+        "Use **Learning** mode for setup, linkage review, and first-pass diagnostics; use **Basic** mode for fast "
+        "repeat monitoring once the framework is set."
     )
     st.caption(
-        "Analytical support only: this workbench is not production execution infrastructure. Results depend on quote "
-        "hygiene, conventions, and model simplifications."
+        "Analytical support only — not execution advice or production pricing infrastructure. Outputs depend on data "
+        "quality, conventions, and model assumptions."
     )
 
     if learning:
-        with st.expander("How to use this workbench", expanded=False):
+        with st.expander("Pedagogy progression", expanded=False):
             st.markdown(
-                "Start each session by checking data coherence before valuation detail. If a discrepancy appears, "
-                "validate inputs first (tenor alignment, quote units, conventions), then revisit model assumptions. "
-                "Use page-level explainers for depth only when the trading question requires it."
+                "**Parity** (CIP) → **basis** (cross-currency residuals) → **model** (FRA valuation choices) → "
+                "**portfolio** (risk/P&L attribution) → **hedge** (stress-tested robustness)."
             )
