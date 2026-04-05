@@ -6,7 +6,9 @@
 - `src/curves/`: Parametric and cross-currency curve construction modules.
 - `src/analytics/`: Pricing analytics including CIP premium decomposition.
 - `src/models/short_rate/`: Short-rate model base types, calibration routines, and FRA simulation tools.
-- `src/risk/`: Scenario, factor, tail-risk, backtesting, and hedging optimization engines.
+- `src/risk/`: Scenario, factor, tail-risk, backtesting, hedging optimization, level/slope/curvature decomposition, and strategy generators.
+  - `pnl_decomposition.py`: Decomposes rate P&L into level (parallel shift), slope (steepening/flattening), and curvature (butterfly/skew) components.
+  - `strategies.py`: Generates randomised portfolios for canonical yield-curve strategies (bull/bear steepener, flattener, butterfly, carry/roll-down).
 - `src/visualization/`: Market diagnostic charting and reporting plots.
 - `src/explainers/`: Human-readable interpretation layer for calibration and risk outputs.
 
@@ -15,6 +17,8 @@
 - `CurveFitExplainer`: Interprets calibration residuals, parameter shapes, and fit stability signals.
 - `RiskScenarioExplainer`: Converts shock outputs into concise PnL/risk-factor impact narratives.
 - `PolicyNarrativeExplainer`: Expresses model conclusions in macro-policy language for broad audiences.
+- `SlopeCurvatureExplainer`: Narrates level/slope/curvature decomposition with macro context (bull/bear steepener/flattener triggers).
+- `SimulationNarrativeGenerator`: Auto-generates post-simulation explanations for scenario and FRA P&L.
 
 ## Milestones
 

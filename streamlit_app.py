@@ -11,7 +11,10 @@ import streamlit as st
 
 from src.risk.portfolio_shocks import Trade, decompose_pnl, propagate_scenario
 from src.risk.scenarios.em_scenarios import EMScenario, em_scenario_library
+from src.risk.pnl_decomposition import aggregate_lsc, decompose_portfolio_lsc, decompose_rate_shocks
+from src.risk.strategies import STRATEGY_CHOICES, generate_random_positions
 from src.explainers.simulation_narrative import ScenarioContext, SimulationNarrativeGenerator
+from src.explainers.slope_curvature import SlopeCurvatureExplainer
 
 
 REQUIRED_PORTFOLIO_COLUMNS = [
@@ -214,6 +217,25 @@ def main() -> None:
         )
 
         st.markdown("---")
+        st.markdown("#### Strategy Generator")
+        strategy_name = st.selectbox(
+            "Yield-curve strategy",
+            options=["(none — use portfolio above)"] + list(STRATEGY_CHOICES.keys()),
+            index=0,
+            help="Select a canonical yield-curve strategy to auto-generate a portfolio. "
+                 "Each strategy creates FRA positions that express a specific view on rates.",
+        )
+        strategy_seed = st.number_input(
+            "Random seed", min_value=0, max_value=999999, value=42, step=1,
+            help="Seed for reproducible random notionals. Change to get a different draw.",
+        )
+        generate_clicked = st.button("Generate positions", type="primary")
+
+        # Show strategy rationale tooltip
+        if strategy_name in STRATEGY_CHOICES:
+            st.caption(STRATEGY_CHOICES[strategy_name])
+
+        st.markdown("---")
         learning_mode = st.toggle(
             "Learning mode", value=False,
             help="Show explanations, scenario narratives, and interpretive guidance alongside results.",
@@ -274,8 +296,29 @@ def main() -> None:
             "The table below shows your portfolio positions. Each row is a trade with its sensitivities. "
             "You can upload your own CSV or edit the default sample."
         )
+    # --- Portfolio source: upload, strategy generator, or default ---
     uploaded = st.file_uploader("Upload portfolio CSV", type=["csv"], help="CSV must include columns: " + ", ".join(REQUIRED_PORTFOLIO_COLUMNS))
-    if uploaded is not None:
+
+    generated_portfolio: pd.DataFrame | None = None
+    if generate_clicked and strategy_name in STRATEGY_CHOICES:
+        trades = generate_random_positions(strategy_name, seed=int(strategy_seed))
+        gen_rows = [
+            {
+                "trade_id": t.trade_id, "instrument": t.instrument,
+                "notional": t.notional, "tenor_bucket": t.tenor_bucket,
+                "dv01": t.dv01, "fx_delta": t.fx_delta,
+                "basis01": t.basis01, "carry": t.carry,
+                "hedge_overlay": t.hedge_overlay,
+            }
+            for t in trades
+        ]
+        generated_portfolio = pd.DataFrame(gen_rows)
+        st.success(f"Generated {len(trades)} trades for **{strategy_name}** strategy (seed={int(strategy_seed)}).")
+
+    if generated_portfolio is not None:
+        uploaded_bytes = None
+        portfolio = generated_portfolio
+    elif uploaded is not None:
         uploaded_bytes = uploaded.getvalue()
         portfolio = pd.read_csv(BytesIO(uploaded_bytes))
     else:
@@ -306,8 +349,9 @@ def main() -> None:
     pnl_decomposition = pd.read_json(BytesIO(cached_results["pnl_decomposition"].encode("utf-8")), orient="records")
     risk_table = pd.read_json(BytesIO(cached_results["risk_table"].encode("utf-8")), orient="records")
 
-    tab_risk, tab_pnl, tab_scenario, tab_explain = st.tabs(
-        ["Risk tables", "P&L decomposition", "Scenario results", "Explanation"]
+    tab_risk, tab_pnl, tab_lsc, tab_scenario, tab_explain = st.tabs(
+        ["Risk tables", "P&L decomposition", "Level / Slope / Curvature",
+         "Scenario results", "Explanation"]
     )
 
     with tab_risk:
@@ -327,6 +371,34 @@ def main() -> None:
             )
         st.dataframe(pnl_decomposition, use_container_width=True)
         _render_downloads(pnl_decomposition, "P&L Decomposition", "pnl_decomposition")
+
+    with tab_lsc:
+        # Build Trade list from the current normalized portfolio
+        trades_for_lsc = _to_portfolio_trades(normalized_portfolio)
+        scn_obj = EMScenario(**scenario_library[scenario_name])
+        lsc_detail = decompose_portfolio_lsc(trades_for_lsc, scn_obj)
+        lsc_agg = aggregate_lsc(lsc_detail)
+        shock_components = decompose_rate_shocks(scn_obj)
+
+        if learning_mode:
+            st.markdown(
+                "This tab decomposes rate P&L into three yield-curve factors: "
+                "**parallel shift** (level), **steepening/flattening** (slope), "
+                "and **butterfly/curvature** (mid-segment vs. wings)."
+            )
+
+        st.markdown("#### Aggregate attribution")
+        st.dataframe(lsc_agg, use_container_width=True)
+
+        st.markdown("#### Trade-level detail")
+        st.dataframe(lsc_detail, use_container_width=True)
+        _render_downloads(lsc_detail, "LSC Decomposition", "lsc_decomposition")
+
+        # Narrative from the SlopeCurvatureExplainer
+        explainer = SlopeCurvatureExplainer()
+        narrative_lsc = explainer.narrate(shock_components, lsc_agg)
+        with st.expander("Interpretation and macro context", expanded=True):
+            st.markdown(narrative_lsc)
 
     with tab_scenario:
         if learning_mode:
