@@ -5,17 +5,43 @@ HUF FRA scenario simulation for sell-side STIR desk + structured learning worksp
 from __future__ import annotations
 
 import argparse
+import importlib
+import importlib.util
+import sys
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
 
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import seaborn as sns
+HAS_NUMPY = importlib.util.find_spec("numpy") is not None
+HAS_PANDAS = importlib.util.find_spec("pandas") is not None
 
-matplotlib.use("Agg")
-sns.set_style("whitegrid")
+HAS_MATPLOTLIB = importlib.util.find_spec("matplotlib") is not None
+HAS_SEABORN = importlib.util.find_spec("seaborn") is not None
+
+if not HAS_NUMPY or not HAS_PANDAS:
+    missing = []
+    if not HAS_NUMPY:
+        missing.append("numpy")
+    if not HAS_PANDAS:
+        missing.append("pandas")
+    print(
+        "Missing required dependencies: "
+        + ", ".join(missing)
+        + ". Install with: python -m pip install "
+        + " ".join(missing),
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+np = importlib.import_module("numpy")
+pd = importlib.import_module("pandas")
+matplotlib = importlib.import_module("matplotlib") if HAS_MATPLOTLIB else None
+plt = importlib.import_module("matplotlib.pyplot") if HAS_MATPLOTLIB else None
+sns = importlib.import_module("seaborn") if HAS_SEABORN else None
+
+if HAS_MATPLOTLIB and matplotlib is not None:
+    matplotlib.use("Agg")
+if HAS_SEABORN and sns is not None:
+    sns.set_style("whitegrid")
 
 
 THEORY_NOTES = """
@@ -523,6 +549,8 @@ def run_scenario(
 
 
 def plot_curves(base_curve: pd.DataFrame, shocked_curve: pd.DataFrame, title: str) -> None:
+    if not HAS_MATPLOTLIB or plt is None:
+        return
     fig, ax = plt.subplots(1, 2, figsize=(12, 4), sharex=True)
     ax[0].plot(base_curve["month"], base_curve["huf_zero"] * 10_000, label="HUF Base", lw=2)
     ax[0].plot(shocked_curve["month"], shocked_curve["huf_zero"] * 10_000, label="HUF Shocked", lw=2)
@@ -536,6 +564,10 @@ def plot_curves(base_curve: pd.DataFrame, shocked_curve: pd.DataFrame, title: st
 
 
 def plot_results(bucket_df: pd.DataFrame, title: str, value_col: str = "pnl") -> None:
+    if not HAS_MATPLOTLIB or plt is None:
+        return
+    if not HAS_SEABORN or sns is None:
+        return
     plt.figure(figsize=(7, 4))
     sns.barplot(data=bucket_df, x="bucket", y=value_col, hue="bucket", legend=False, palette="viridis")
     plt.title(f"{value_col.upper()} by Bucket - {title}")
@@ -543,6 +575,8 @@ def plot_results(bucket_df: pd.DataFrame, title: str, value_col: str = "pnl") ->
 
 
 def demo(config: SimulationConfig = DEFAULT_CONFIG) -> None:
+    if not HAS_MATPLOTLIB or not HAS_SEABORN:
+        print("Plotting libraries not installed; running demo in text-only mode.")
     scenarios = [("tariff_liberation", False, False), ("war_shock", True, False), ("debt_crisis", False, True)]
     for regime, steep, flat in scenarios:
         results = run_scenario(regime, config, steepening=steep, flattening=flat)
@@ -558,7 +592,8 @@ def demo(config: SimulationConfig = DEFAULT_CONFIG) -> None:
         print(anchor.to_string(index=False))
         plot_curves(results["base_curve"], results["shocked_curve"], title=regime)
         plot_results(results["huf_bucket"], title=regime, value_col="pnl")
-    plt.show()
+    if HAS_MATPLOTLIB and plt is not None:
+        plt.show()
 
 
 def print_theory_notes() -> None:
@@ -652,6 +687,8 @@ def run_convexity_mode(args: argparse.Namespace) -> None:
     print("Stylized Gaussian short-rate convexity; interpret as model-risk indicator, not executable quote.")
     print(table.to_string(index=False))
     if args.save_plot:
+        if not HAS_MATPLOTLIB or plt is None or not HAS_SEABORN or sns is None:
+            raise RuntimeError("Cannot save convexity plot because matplotlib/seaborn are not installed.")
         plt.figure(figsize=(7, 4))
         sns.lineplot(data=table, x="tenor", y="convexity_bp", hue="vol_assumption", marker="o")
         plt.tight_layout()
