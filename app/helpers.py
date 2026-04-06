@@ -253,7 +253,7 @@ def _normalize_uploaded_schema(df: pd.DataFrame, source: str) -> pd.DataFrame:
         raise CurveSchemaError(f"Schema mismatch: rate column contains non-numeric values at row(s) {bad_rows}.")
 
     if date_col is not None:
-        parsed = pd.to_datetime(df[date_col], errors="coerce", utc=True)
+        parsed = pd.to_datetime(df[date_col], errors="coerce", utc=True, format="mixed")
         if parsed.isna().any():
             bad_rows = parsed.index[parsed.isna()].tolist()
             raise CurveSchemaError(f"Schema mismatch: date/timestamp column contains unparsable values at row(s) {bad_rows}.")
